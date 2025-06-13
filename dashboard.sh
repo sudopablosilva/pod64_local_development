@@ -69,7 +69,6 @@ while true; do
         "Scheduler:8085"
         "SPA:4444"
         "SPAQ:8087"
-        "DynamoDB-Test:9999"
     )
     
     for service_info in "${services[@]}"; do

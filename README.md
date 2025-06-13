@@ -34,16 +34,36 @@ Cliente → Control-M → JMI → JMW → JMR → Scheduler Plugin → SPA → S
 
 ## 🚀 Quick Start
 
-### 1. **Iniciar o Sistema**
+### 1. **Configuração Inicial**
 ```bash
-# Construir todos os serviços
-finch compose -f finch-compose.yml build
+# Autenticação Amazon
+mwinit
 
+# Clonar o repositório
+git clone git@ssh.gitlab.aws.dev:pcsilva/pod64_local_development.git
+cd pod64_local_development
+
+# Instalar e configurar Finch
+brew install finch
+sudo finch vm init
+```
+
+### 2. **Iniciar o Sistema**
+```bash
 # Iniciar o sistema completo
-finch compose -f finch-compose.yml up -d
+finch compose up -d
 
-# Aguardar inicialização (30s)
-sleep 30
+# Aguardar inicialização (2 minutos)
+sleep 120
+
+# Iniciar o dashboard de monitoramento
+./dashboard.sh
+```
+
+### 3. **Executar Testes**
+```bash
+# Em outro terminal, execute o teste completo
+./test-complete-flow.sh
 ```
 
 ### 2. **Verificar Status**
@@ -188,10 +208,63 @@ curl http://localhost:4333/health
 ./dashboard.sh
 ```
 
+## 🔧 Guia de Instalação Completo
+
+### **Pré-requisitos**
+- Conta AWS com acesso configurado
+- Git instalado
+- Homebrew (para macOS)
+- Finch (alternativa ao Docker para macOS)
+
+### **Passo a Passo**
+
+1. **Autenticação na Amazon**
+   ```bash
+   mwinit
+   ```
+   Este comando inicia o processo de autenticação com a AWS.
+
+2. **Clonar o Repositório**
+   ```bash
+   git clone git@ssh.gitlab.aws.dev:pcsilva/pod64_local_development.git
+   cd pod64_local_development
+   ```
+
+3. **Instalar e Configurar Finch**
+   ```bash
+   brew install finch
+   sudo finch vm init
+   ```
+   Finch é uma alternativa ao Docker para ambientes macOS.
+
+4. **Iniciar os Serviços**
+   ```bash
+   finch compose up -d
+   ```
+   Este comando inicia todos os microserviços em containers.
+
+5. **Aguardar Inicialização**
+   ```bash
+   sleep 120
+   ```
+   Aguarde 2 minutos para que todos os serviços estejam prontos.
+
+6. **Iniciar o Dashboard**
+   ```bash
+   ./dashboard.sh
+   ```
+   O dashboard mostra o status em tempo real de todos os serviços.
+
+7. **Executar Testes (em outro terminal)**
+   ```bash
+   ./test-complete-flow.sh
+   ```
+   Este script executa um fluxo completo de testes para validar a integração.
+
 ## 📁 Estrutura do Projeto
 
 ```
-poc_bdd/
+pod64_local_development/
 ├── control-m/          # Serviço Control-M
 ├── jmi/               # Job Manager Integrator (+ Monitoring)
 ├── jmw/               # Job Manager Worker
@@ -199,13 +272,13 @@ poc_bdd/
 ├── scheduler-plugin/   # Scheduler Plugin
 ├── spa/               # Scheduler Plugin Adapter
 ├── spaq/              # Scheduler Plugin Adapter Queue
-├── finch-compose.yml  # Configuração dos containers
+├── docker-compose.yml  # Configuração dos containers
 ├── dashboard.sh       # Dashboard em tempo real ✅
 ├── test-complete-flow.sh # Teste completo ✅
 ├── set-latency.sh     # Configuração de latência
 ├── DIAGRAMA_FLUXO_DADOS.md # Diagrama de fluxo de dados
 ├── DIAGRAMA_SEQUENCIA.md # Diagrama de sequência
-└── REVISAR/           # Arquivos desnecessários movidos
+└── REVISAO_2/         # Arquivos de revisão
 ```
 
 Para suporte ou dúvidas, consulte os diagramas detalhados e execute os scripts de teste.
