@@ -1,0 +1,192 @@
+version: '3.8'
+
+services:
+  # Control-M Service
+  control-m:
+    build: 
+      context: ./control-m
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SERVICE_PORT=8080
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/job-requests
+    depends_on:
+      - localstack
+    networks:
+      - app-network
+
+  # Job Manager Integrator (JMI)
+  jmi:
+    build: 
+      context: ./jmi
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SERVICE_PORT=8080
+      - DYNAMODB_TABLE=jobs
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/job-requests
+      - JMW_QUEUE_URL=http://localstack:4566/000000000000/jmw-queue
+    depends_on:
+      - localstack
+    networks:
+      - app-network
+
+  # Job Manager Worker (JMW)
+  jmw:
+    build: 
+      context: ./jmw
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8080"
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SERVICE_PORT=8080
+      - DYNAMODB_TABLE=jobs
+      - JMW_QUEUE_URL=http://localstack:4566/000000000000/jmw-queue
+      - JMR_QUEUE_URL=http://localstack:4566/000000000000/jmr-queue
+    depends_on:
+      - localstack
+    networks:
+      - app-network
+
+  # Job Manager Runner (JMR)
+  jmr:
+    build: 
+      context: ./jmr
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8080"
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SERVICE_PORT=8080
+      - DYNAMODB_TABLE=jobs
+      - JMR_QUEUE_URL=http://localstack:4566/000000000000/jmr-queue
+      - SP_QUEUE_URL=http://localstack:4566/000000000000/sp-queue
+    depends_on:
+      - localstack
+    networks:
+      - app-network
+
+  # Scheduler Plugin (SP)
+  scheduler-plugin:
+    build: 
+      context: ./scheduler-plugin
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8080"
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SERVICE_PORT=8080
+      - DYNAMODB_TABLE=schedules
+      - SP_QUEUE_URL=http://localstack:4566/000000000000/sp-queue
+      - SPA_QUEUE_URL=http://localstack:4566/000000000000/spa-queue
+    depends_on:
+      - localstack
+    networks:
+      - app-network
+
+  # Scheduler Plugin Adapter (SPA)
+  spa:
+    build: 
+      context: ./spa
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8080"
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SERVICE_PORT=8080
+      - DYNAMODB_TABLE=adapters
+      - SPA_QUEUE_URL=http://localstack:4566/000000000000/spa-queue
+      - SPAQ_QUEUE_URL=http://localstack:4566/000000000000/spaq-queue
+    depends_on:
+      - localstack
+    networks:
+      - app-network
+
+  # Scheduler Plugin Adapter Queue (SPAQ)
+  spaq:
+    build: 
+      context: ./spaq
+      dockerfile: Dockerfile
+    ports:
+      - "8087:8080"
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SERVICE_PORT=8080
+      - DYNAMODB_TABLE=queue_messages
+      - SPAQ_QUEUE_URL=http://localstack:4566/000000000000/spaq-queue
+    depends_on:
+      - localstack
+    networks:
+      - app-network
+
+  # LocalStack for AWS services simulation
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,sqs,s3,lambda
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - TMPDIR=/tmp/localstack-tmp
+    volumes:
+      - ./localstack:/etc/localstack/init/ready.d
+      - localstack-data:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - app-network
+
+  # Test Runner
+  test-runner:
+    build:
+      context: .
+      dockerfile: test-runner.dockerfile
+    depends_on:
+      - control-m
+      - jmi
+      - jmw
+      - jmr
+      - scheduler-plugin
+      - spa
+      - spaq
+      - localstack
+    environment:
+      - AWS_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  localstack-data:
