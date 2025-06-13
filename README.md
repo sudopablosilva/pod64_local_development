@@ -1,93 +1,211 @@
-# pod64_local_development
+# POC BDD - Microservices Job Processing Pipeline (VERSÃO CORRIGIDA)
 
+Este projeto implementa uma arquitetura de microserviços para processamento de jobs com integração BDD (Behavior-Driven Development) e **correções completas de integração com LocalStack**.
 
+## 🎯 Status do Projeto
 
-## Getting started
+**✅ TOTALMENTE FUNCIONAL** - Todas as correções implementadas e testadas com sucesso.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 🏗️ Arquitetura
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+O sistema consiste nos seguintes serviços:
 
-## Add your files
+| Serviço | Porta | Função |  |
+|---------|-------|--------|--------|
+| **Control-M** | 4333 | Job submission e management |
+| **JMI** | 4333 | Job Manager Integrator + Monitor |
+| **JMW** | 8080 | Job Manager Worker |
+| **JMR** | 8084 | Job Manager Runner |
+| **Scheduler Plugin** | 8085 | Criação de schedules |
+| **SPA** | 4444 | Scheduler Plugin Adapter |
+| **SPAQ** | 8087 | Scheduler Plugin Adapter Queue |
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+## 📊 Fluxo de Dados
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.aws.dev/pcsilva/pod64_local_development.git
-git branch -M main
-git push -uf origin main
+Cliente → Control-M → JMI → JMW → JMR → Scheduler Plugin → SPA → SPAQ
+                      ↓     ↓     ↓            ↓           ↓     ↓
+                   DynamoDB Tables + SQS Queues (LocalStack)
 ```
 
-## Integrate with your tools
+**Veja diagramas detalhados:**
+- [📊 Diagrama de Fluxo de Dados](./DIAGRAMA_FLUXO_DADOS.md)
+- [🔄 Diagrama de Sequência](./DIAGRAMA_SEQUENCIA.md)
 
-- [ ] [Set up project integrations](https://gitlab.aws.dev/pcsilva/pod64_local_development/-/settings/integrations)
+## 🚀 Quick Start
 
-## Collaborate with your team
+### 1. **Iniciar o Sistema**
+```bash
+# Construir todos os serviços
+finch compose -f finch-compose.yml build
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+# Iniciar o sistema completo
+finch compose -f finch-compose.yml up -d
 
-## Test and Deploy
+# Aguardar inicialização (30s)
+sleep 30
+```
 
-Use the built-in continuous integration in GitLab.
+### 2. **Verificar Status**
+```bash
+# Dashboard em tempo real
+./dashboard.sh
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+# Verificar health de todos os serviços
+for port in 4333 8080 8084 8085 4444 8087; do
+    echo "Porta $port: $(curl -s http://localhost:$port/health | jq -r '.status // "offline"')"
+done
+```
 
-***
+### 3. **Executar Testes**
+```bash
+# Teste completo do fluxo
+./test-complete-flow.sh
 
-# Editing this README
+# Teste individual
+curl -X POST http://localhost:4333/startExecution \
+  -H "Content-Type: application/json" \
+  -d '{"executionName": "TESTE_001"}'
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 🔧 Configuração de Latência
 
-## Suggestions for a good README
+```bash
+# Configurar latência de 5 segundos
+./set-latency.sh 5000
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+# Remover latência (velocidade máxima)
+./set-latency.sh 0
 
-## Name
-Choose a self-explaining name for your project.
+# Verificar configuração atual
+grep PROCESSING_DELAY_MS finch-compose.yml
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+## 📊 Monitoramento
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### **Dashboard em Tempo Real**
+```bash
+./dashboard.sh
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### **Endpoints de Monitoramento (via JMI)**
+| Endpoint | Função | Exemplo |
+|----------|--------|---------|
+| `/tables` | Lista tabelas DynamoDB | `curl http://localhost:4333/tables` |
+| `/executions` | Lista execuções versionadas | `curl http://localhost:4333/executions` |
+| `/queues` | Status das filas SQS | `curl http://localhost:4333/queues` |
+| `/health` | Status do serviço | `curl http://localhost:4333/health` |
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### **Exemplo de Resposta - Execuções**
+```json
+{
+  "count": 5,
+  "executions": [
+    {
+      "executionName": "TEST_123#v1#jmi-start",
+      "originalName": "TEST_123",
+      "status": "started",
+      "stage": "jmi-start",
+      "processedBy": "JMI",
+      "version": 1,
+      "timestamp": 1749840000
+    }
+  ],
+  "service": "jmi"
+}
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 🗄️ Dados Persistidos
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### **Tabelas DynamoDB**
+- `executions` - Execuções versionadas com metadados completos
+- `jobs` - Definições e status de jobs
+- `schedules` - Configurações de agendamento
+- `adapters` - Configurações de adaptadores
+- `queue_messages` - Logs e estatísticas de mensagens
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### **Filas SQS**
+- `job-requests` - Solicitações de processamento
+- `jmw-queue` - Jobs processados
+- `jmr-queue` - Execuções completadas
+- `sp-queue` - Agendamentos criados
+- `spa-queue` - Adaptações configuradas
+- `spaq-queue` - Mensagens finalizadas
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## 🧪 Testes BDD
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Os testes de integração estão escritos em sintaxe Gherkin e implementados com Godog:
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### **Funcionalidades Testadas**
+- ✅ Pipeline completo de processamento de jobs
+- ✅ Comunicação entre serviços via SQS
+- ✅ Persistência de dados versionados
+- ✅ Health checks de todos os serviços
+- ✅ Monitoramento em tempo real
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### **Executar Testes**
+```bash
+# Teste completo do fluxo
+./test-complete-flow.sh
 
-## License
-For open source projects, say how it is licensed.
+# Resultados esperados:
+# ✓ 6/6 testes principais passaram
+# ✓ 7/7 health checks OK
+# ✓ Dados persistidos corretamente
+# ✓ Filas SQS funcionando
+```
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## 🔍 Troubleshooting
+
+### **Serviços Não Iniciam**
+```bash
+# Verificar portas em uso
+netstat -an | grep -E "(4333|8080|8084|8085|4444|8087|4566)"
+
+# Verificar logs
+finch compose -f finch-compose.yml logs [service-name]
+
+# Reiniciar serviços
+finch compose -f finch-compose.yml restart
+```
+
+### **Dados Não Aparecem**
+```bash
+# Verificar via endpoints do JMI (sempre funciona)
+curl http://localhost:4333/executions | jq .
+curl http://localhost:4333/tables | jq .
+
+# Verificar conectividade LocalStack
+curl -s http://localhost:4566/health || echo "LocalStack offline"
+```
+
+### **Dashboard Não Atualiza**
+```bash
+# Verificar se JMI está respondendo
+curl http://localhost:4333/health
+
+# Executar dashboard manualmente
+./dashboard.sh
+```
+
+## 📁 Estrutura do Projeto
+
+```
+poc_bdd/
+├── control-m/          # Serviço Control-M
+├── jmi/               # Job Manager Integrator (+ Monitoring)
+├── jmw/               # Job Manager Worker
+├── jmr/               # Job Manager Runner
+├── scheduler-plugin/   # Scheduler Plugin
+├── spa/               # Scheduler Plugin Adapter
+├── spaq/              # Scheduler Plugin Adapter Queue
+├── finch-compose.yml  # Configuração dos containers
+├── dashboard.sh       # Dashboard em tempo real ✅
+├── test-complete-flow.sh # Teste completo ✅
+├── set-latency.sh     # Configuração de latência
+├── DIAGRAMA_FLUXO_DADOS.md # Diagrama de fluxo de dados
+├── DIAGRAMA_SEQUENCIA.md # Diagrama de sequência
+└── REVISAR/           # Arquivos desnecessários movidos
+```
+
+Para suporte ou dúvidas, consulte os diagramas detalhados e execute os scripts de teste.
