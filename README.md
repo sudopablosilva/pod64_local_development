@@ -12,6 +12,7 @@ O sistema consiste nos seguintes serviços:
 
 | Serviço | Porta | Função |  |
 |---------|-------|--------|--------|
+| **Web Dashboard** | 3000 | Modern UX monitoring dashboard |
 | **Control-M** | 4333 | Job submission e management |
 | **JMI** | 4333 | Job Manager Integrator + Monitor |
 | **JMW** | 8080 | Job Manager Worker |
@@ -26,6 +27,8 @@ O sistema consiste nos seguintes serviços:
 Cliente → Control-M → JMI → JMW → JMR → Scheduler Plugin → SPA → SPAQ
                       ↓     ↓     ↓            ↓           ↓     ↓
                    DynamoDB Tables + SQS Queues (LocalStack)
+                                    ↑
+                            Web Dashboard (Real-time monitoring)
 ```
 
 **Veja diagramas detalhados:**
@@ -48,7 +51,15 @@ brew install finch
 sudo finch vm init
 ```
 
-### 2. **Iniciar o Sistema**
+### 2. **Iniciar o Sistema (Opção Recomendada - Web Dashboard)**
+```bash
+# Iniciar sistema completo com dashboard web moderno
+./start-web-dashboard.sh
+
+# Acesse o dashboard em: http://localhost:3000
+```
+
+### 3. **Iniciar o Sistema (Opção Tradicional)**
 ```bash
 # Iniciar o sistema completo
 finch compose up -d
@@ -56,11 +67,11 @@ finch compose up -d
 # Aguardar inicialização (2 minutos)
 sleep 120
 
-# Iniciar o dashboard de monitoramento
+# Iniciar o dashboard de monitoramento em terminal
 ./dashboard.sh
 ```
 
-### 3. **Executar Testes**
+### 4. **Executar Testes**
 ```bash
 # Em outro terminal, execute o teste completo
 ./test-complete-flow.sh
@@ -103,7 +114,24 @@ grep PROCESSING_DELAY_MS finch-compose.yml
 
 ## 📊 Monitoramento
 
-### **Dashboard em Tempo Real**
+### **Web Dashboard Moderno (Recomendado)**
+```bash
+# Iniciar com dashboard web
+./start-web-dashboard.sh
+
+# Acessar dashboard: http://localhost:3000
+```
+
+**Funcionalidades do Web Dashboard:**
+- ✅ **Interface Moderna**: Design responsivo e acessível
+- ✅ **Tempo Real**: Atualizações via WebSocket
+- ✅ **Multi-dispositivo**: Funciona em desktop, tablet e mobile
+- ✅ **Interativo**: Clique para acessar serviços diretamente
+- ✅ **Filtros Avançados**: Busca e filtros para execuções
+- ✅ **Modo Escuro**: Suporte automático ao modo escuro
+- ✅ **Acessibilidade**: Navegação por teclado e leitores de tela
+
+### **Dashboard em Terminal (Tradicional)**
 ```bash
 ./dashboard.sh
 ```
