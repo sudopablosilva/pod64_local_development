@@ -7,6 +7,7 @@ ENV GOSUMDB=off
 WORKDIR /app
 COPY go.mod go.sum ./
 COPY . .
+RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -o control-m .
 
 FROM alpine:3.22
