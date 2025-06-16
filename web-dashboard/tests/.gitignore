@@ -1,0 +1,48 @@
+# Python virtual environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Test reports
+reports/
+*.html
+!manual_browser_test.html
+
+# Screenshots and videos from tests
+screenshots/
+videos/
+test-results/
+
+# Selenium WebDriver cache
+.wdm/
+drivers/
+
+# ChromeDriver and other drivers
+chromedriver*
+geckodriver*
+msedgedriver*
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+.tox/
+.coverage.*
+
+# Test artifacts
+*.log
+test_*.xml
+junit.xml
+
+# Temporary test files
+temp_*
+tmp_*

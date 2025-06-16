@@ -1,0 +1,391 @@
+.services-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.services-header {
+  text-align: center;
+}
+
+.services-header h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.services-header p {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.services-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.service-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.service-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.service-card:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.service-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.service-info {
+  flex: 1;
+}
+
+.service-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.service-port {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.service-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.service-card:hover .service-actions {
+  opacity: 1;
+}
+
+.external-link-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #6b7280;
+}
+
+.service-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.service-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.status-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.status-icon--online {
+  color: #10b981;
+}
+
+.status-icon--offline {
+  color: #ef4444;
+}
+
+.status-icon--pending {
+  color: #f59e0b;
+  animation: pulse 2s infinite;
+}
+
+.status-text {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.service-card.online .status-text {
+  color: #065f46;
+}
+
+.service-card.offline .status-text {
+  color: #991b1b;
+}
+
+.service-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.service-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.detail-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: #111827;
+  font-weight: 600;
+}
+
+.service-error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: #fef2f2;
+  border-radius: 8px;
+  border-left: 3px solid #ef4444;
+}
+
+.error-label {
+  font-size: 0.75rem;
+  color: #991b1b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.error-message {
+  font-size: 0.875rem;
+  color: #7f1d1d;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  word-break: break-word;
+}
+
+.service-card__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.service-card__indicator.online {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.service-card__indicator.offline {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
+.service-card__indicator.pending {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.services-summary {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.summary-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.summary-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.services-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #9ca3af;
+  margin-bottom: 1rem;
+}
+
+.services-empty h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.services-empty p {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .services-list {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .service-card {
+    padding: 1.25rem;
+  }
+  
+  .services-summary {
+    gap: 2rem;
+    padding: 1.25rem;
+  }
+  
+  .summary-value {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-card__header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  
+  .service-actions {
+    opacity: 1;
+  }
+  
+  .services-summary {
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .summary-value {
+    font-size: 1.5rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .services-header h3,
+  .service-name,
+  .detail-value,
+  .summary-value {
+    color: #e5e7eb;
+  }
+  
+  .services-header p,
+  .service-port,
+  .detail-label,
+  .summary-label {
+    color: #9ca3af;
+  }
+  
+  .service-card,
+  .services-summary,
+  .services-empty {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  
+  .service-card.online .status-text {
+    color: #6ee7b7;
+  }
+  
+  .service-card.offline .status-text {
+    color: #fca5a5;
+  }
+  
+  .service-error {
+    background: #1f2937;
+    border-color: #ef4444;
+  }
+  
+  .error-label {
+    color: #fca5a5;
+  }
+  
+  .error-message {
+    color: #f87171;
+  }
+  
+  .services-empty h3 {
+    color: #d1d5db;
+  }
+  
+  .services-empty p {
+    color: #9ca3af;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .service-card,
+  .services-summary,
+  .services-empty {
+    border-width: 2px;
+    border-color: #000;
+  }
+  
+  .service-card:focus {
+    outline-width: 3px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .service-card {
+    transition: none;
+  }
+  
+  .service-card:hover {
+    transform: none;
+  }
+  
+  .service-actions {
+    transition: none;
+  }
+  
+  .status-icon--pending {
+    animation: none;
+  }
+}

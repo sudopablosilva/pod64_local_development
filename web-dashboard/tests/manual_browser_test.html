@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC BDD Dashboard - Manual Test Suite</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f8fafc;
+        }
+        .test-container {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .test-header {
+            color: #1e293b;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        .test-result {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        .success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        .info {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            color: #1e40af;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .dashboard-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            margin: 1rem 0;
+            transition: transform 0.2s;
+        }
+        .dashboard-link:hover {
+            transform: translateY(-2px);
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        .status-online { background: #10b981; }
+        .status-offline { background: #ef4444; }
+        .status-unknown { background: #f59e0b; }
+    </style>
+</head>
+<body>
+    <h1>🧪 POC BDD Dashboard - Manual Test Suite</h1>
+    <p>This page tests the dashboard functionality without requiring Selenium or ChromeDriver.</p>
+    
+    <div class="test-container">
+        <h2 class="test-header">🌐 Dashboard Access</h2>
+        <p>Click the link below to open the dashboard in a new tab:</p>
+        <a href="http://localhost:3000" target="_blank" class="dashboard-link">
+            📊 Open POC BDD Dashboard
+        </a>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-header">🔍 API Endpoint Tests</h2>
+        <button onclick="testDashboardHealth()">Test Dashboard Health</button>
+        <button onclick="testServicesStatus()">Test Services Status</button>
+        <button onclick="testExecutionsData()">Test Executions Data</button>
+        <button onclick="testTablesData()">Test Tables Data</button>
+        <button onclick="testQueuesData()">Test Queues Data</button>
+        <button onclick="runAllTests()">Run All Tests</button>
+        
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-header">📋 Manual Testing Checklist</h2>
+        <p>Open the dashboard and verify the following features:</p>
+        <ul>
+            <li><strong>Header:</strong> Shows "POC BDD Dashboard" title and connection status</li>
+            <li><strong>Navigation:</strong> Four tabs (Overview, Executions, Tables, Queues)</li>
+            <li><strong>Overview Tab:</strong> Service grid with status indicators</li>
+            <li><strong>Executions Tab:</strong> Search box, filters, and execution cards</li>
+            <li><strong>Tables Tab:</strong> DynamoDB table cards with descriptions</li>
+            <li><strong>Queues Tab:</strong> SQS queue cards with message counts</li>
+            <li><strong>Real-time Updates:</strong> Data refreshes every 5 seconds</li>
+            <li><strong>Responsive Design:</strong> Works on mobile and desktop</li>
+            <li><strong>Accessibility:</strong> Tab navigation and screen reader support</li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-header">🎯 Expected Results</h2>
+        <div id="expected-results">
+            <p><strong>Services:</strong> All 7 services should show as online</p>
+            <p><strong>Executions:</strong> Should display execution names, not "Unknown"</p>
+            <p><strong>Tables:</strong> Should show 5 DynamoDB tables</p>
+            <p><strong>Queues:</strong> Should show 6 SQS queues with message counts</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        
+        function displayResult(testName, success, data, error = null) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${success ? 'success' : 'error'}`;
+            
+            if (success) {
+                resultDiv.innerHTML = `
+                    <strong>✅ ${testName} - PASSED</strong><br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <strong>❌ ${testName} - FAILED</strong><br>
+                    <pre>Error: ${error}</pre>
+                `;
+            }
+            
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        async function testDashboardHealth() {
+            try {
+                const response = await fetch('http://localhost:3000/health');
+                const data = await response.json();
+                displayResult('Dashboard Health', response.ok, data);
+            } catch (error) {
+                displayResult('Dashboard Health', false, null, error.message);
+            }
+        }
+        
+        async function testServicesStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/services`);
+                const data = await response.json();
+                const summary = {
+                    total: data.services?.length || 0,
+                    online: data.services?.filter(s => s.status === 'online').length || 0,
+                    services: data.services?.map(s => ({name: s.name, status: s.status})) || []
+                };
+                displayResult('Services Status', response.ok, summary);
+            } catch (error) {
+                displayResult('Services Status', false, null, error.message);
+            }
+        }
+        
+        async function testExecutionsData() {
+            try {
+                const response = await fetch(`${API_BASE}/executions`);
+                const data = await response.json();
+                const summary = {
+                    count: data.count || 0,
+                    sample: data.executions?.slice(0, 3).map(e => ({
+                        name: e.executionName,
+                        originalName: e.originalName,
+                        status: e.status,
+                        stage: e.stage
+                    })) || []
+                };
+                displayResult('Executions Data', response.ok, summary);
+            } catch (error) {
+                displayResult('Executions Data', false, null, error.message);
+            }
+        }
+        
+        async function testTablesData() {
+            try {
+                const response = await fetch(`${API_BASE}/tables`);
+                const data = await response.json();
+                displayResult('Tables Data', response.ok, data);
+            } catch (error) {
+                displayResult('Tables Data', false, null, error.message);
+            }
+        }
+        
+        async function testQueuesData() {
+            try {
+                const response = await fetch(`${API_BASE}/queues`);
+                const data = await response.json();
+                const summary = {
+                    count: data.count || 0,
+                    queues: data.queues?.map(q => ({
+                        name: q.name,
+                        visible: q.visibleMessages,
+                        processing: q.notVisibleMessages
+                    })) || []
+                };
+                displayResult('Queues Data', response.ok, summary);
+            } catch (error) {
+                displayResult('Queues Data', false, null, error.message);
+            }
+        }
+        
+        async function runAllTests() {
+            document.getElementById('test-results').innerHTML = '';
+            await testDashboardHealth();
+            await testServicesStatus();
+            await testExecutionsData();
+            await testTablesData();
+            await testQueuesData();
+        }
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+</body>
+</html>

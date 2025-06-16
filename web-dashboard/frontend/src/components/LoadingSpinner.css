@@ -1,0 +1,111 @@
+.loading-spinner {
+  display: inline-block;
+  position: relative;
+}
+
+.spinner-ring {
+  display: inline-block;
+  position: relative;
+}
+
+.spinner-ring div {
+  box-sizing: border-box;
+  display: block;
+  position: absolute;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  animation: spinner-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  border-top-color: currentColor;
+}
+
+.spinner-ring div:nth-child(1) {
+  animation-delay: -0.45s;
+}
+
+.spinner-ring div:nth-child(2) {
+  animation-delay: -0.3s;
+}
+
+.spinner-ring div:nth-child(3) {
+  animation-delay: -0.15s;
+}
+
+/* Size variants */
+.loading-spinner--small .spinner-ring {
+  width: 24px;
+  height: 24px;
+}
+
+.loading-spinner--small .spinner-ring div {
+  width: 24px;
+  height: 24px;
+  margin: 3px;
+  border-width: 2px;
+}
+
+.loading-spinner--medium .spinner-ring {
+  width: 40px;
+  height: 40px;
+}
+
+.loading-spinner--medium .spinner-ring div {
+  width: 40px;
+  height: 40px;
+  margin: 4px;
+  border-width: 3px;
+}
+
+.loading-spinner--large .spinner-ring {
+  width: 64px;
+  height: 64px;
+}
+
+.loading-spinner--large .spinner-ring div {
+  width: 64px;
+  height: 64px;
+  margin: 6px;
+  border-width: 4px;
+}
+
+/* Color variants */
+.loading-spinner--primary {
+  color: #3b82f6;
+}
+
+.loading-spinner--secondary {
+  color: #6b7280;
+}
+
+.loading-spinner--success {
+  color: #10b981;
+}
+
+.loading-spinner--warning {
+  color: #f59e0b;
+}
+
+.loading-spinner--error {
+  color: #ef4444;
+}
+
+.loading-spinner--white {
+  color: #ffffff;
+}
+
+@keyframes spinner-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-ring div {
+    animation: none;
+    border-top-color: transparent;
+    border-right-color: currentColor;
+  }
+}

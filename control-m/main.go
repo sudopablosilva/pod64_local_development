@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -27,10 +29,24 @@ type JobRequest struct {
 	Status      string                 `json:"status"`
 }
 
+// StartExecutionRequest represents the request to start an execution
+type StartExecutionRequest struct {
+	ExecutionName string `json:"executionName"`
+}
+
+// StartExecutionResponse represents the response from JMI
+type StartExecutionResponse struct {
+	ExecutionName string `json:"executionName"`
+	ExecutionUuid string `json:"executionUuid"`
+	Message       string `json:"message"`
+	Status        string `json:"status"`
+}
+
 type ControlMService struct {
 	jobs      []JobRequest
 	sqsClient *sqs.Client
 	queueURL  string
+	jmiURL    string
 }
 
 func NewControlMService() *ControlMService {
@@ -60,11 +76,75 @@ func NewControlMService() *ControlMService {
 		log.Fatalf("Unable to load SDK config: %v", err)
 	}
 
+	// Determine JMI URL based on environment
+	jmiURL := os.Getenv("JMI_URL")
+	if jmiURL == "" {
+		// Default to Docker internal network address
+		jmiURL = "http://jmi:8080"
+	}
+
 	return &ControlMService{
 		jobs:      make([]JobRequest, 0),
 		sqsClient: sqs.NewFromConfig(cfg),
 		queueURL:  os.Getenv("SQS_QUEUE_URL"),
+		jmiURL:    jmiURL,
 	}
+}
+
+func (c *ControlMService) StartExecution(ctx *gin.Context) {
+	var req StartExecutionRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	log.Printf("Control-M: Starting execution %s", req.ExecutionName)
+
+	// Call JMI to start the execution
+	jmiResponse, err := c.callJMI(req)
+	if err != nil {
+		log.Printf("Error calling JMI: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to start execution via JMI",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	log.Printf("Control-M: Successfully started execution %s via JMI", req.ExecutionName)
+
+	// Return the response from JMI
+	ctx.JSON(http.StatusOK, jmiResponse)
+}
+
+func (c *ControlMService) callJMI(req StartExecutionRequest) (*StartExecutionResponse, error) {
+	// Prepare the request to JMI
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	// Make HTTP request to JMI
+	jmiEndpoint := fmt.Sprintf("%s/startExecution", c.jmiURL)
+	log.Printf("Control-M: Calling JMI at %s", jmiEndpoint)
+
+	resp, err := http.Post(jmiEndpoint, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call JMI: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("JMI returned status %d", resp.StatusCode)
+	}
+
+	// Parse JMI response
+	var jmiResponse StartExecutionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&jmiResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode JMI response: %v", err)
+	}
+
+	return &jmiResponse, nil
 }
 
 func (c *ControlMService) SubmitJob(ctx *gin.Context) {
@@ -138,11 +218,15 @@ func main() {
 	r.POST("/jobs", service.SubmitJob)
 	r.GET("/jobs", service.GetJobs)
 
+	// Execution management endpoints (NEW - calls JMI)
+	r.POST("/startExecution", service.StartExecution)
+
 	port := os.Getenv("SERVICE_PORT")
 	if port == "" {
 		port = "8080"
 	}
 
 	log.Printf("Control-M service starting on port %s", port)
+	log.Printf("Control-M will call JMI at: %s", service.jmiURL)
 	log.Fatal(r.Run(":" + port))
 }

@@ -15,32 +15,32 @@ echo "   • Synthetic: $EXECUTION_NAME_2"
 echo "   • JMW: $EXECUTION_NAME_3"
 echo ""
 
-# Test 1: Start Integrator (JMI)
-echo "1. Testing Start Integrator (JMI)..."
-EXECUTION_UUID=$(curl -s -X POST http://localhost:4333/startExecution \
+# Test 1: Start Execution via Control-M (NEW - correct architecture)
+echo "1. Testing Start Execution via Control-M..."
+EXECUTION_UUID=$(curl -s -X POST http://localhost:8081/startExecution \
 -H "Content-Type: application/json" \
 -d "{
     \"executionName\": \"$EXECUTION_NAME_1\"
 }" | jq -r '.executionUuid // empty')
 
 if [ -n "$EXECUTION_UUID" ]; then
-    echo "✓ JMI Start Execution successful. UUID: $EXECUTION_UUID"
+    echo "✓ Control-M → JMI Start Execution successful. UUID: $EXECUTION_UUID"
 else
-    echo "✗ JMI Start Execution failed"
+    echo "✗ Control-M → JMI Start Execution failed"
 fi
 
-# Test 2: Start Integrator - Synthetic Test
-echo "2. Testing Start Integrator - Synthetic Test..."
-curl -s -X POST http://localhost:4333/startExecution \
+# Test 2: Start Execution via Control-M - Synthetic Test
+echo "2. Testing Start Execution via Control-M - Synthetic Test..."
+curl -s -X POST http://localhost:8081/startExecution \
 -H "Content-Type: application/json" \
 -d "{
     \"executionName\": \"$EXECUTION_NAME_2\"
 }" > /dev/null
 
 if [ $? -eq 0 ]; then
-    echo "✓ JMI Synthetic Test successful"
+    echo "✓ Control-M → JMI Synthetic Test successful"
 else
-    echo "✗ JMI Synthetic Test failed"
+    echo "✗ Control-M → JMI Synthetic Test failed"
 fi
 
 # Test 3: JMW Start (from startRoutine.sh)
