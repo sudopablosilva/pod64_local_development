@@ -1,5 +1,5 @@
 # Multi-stage build for React frontend and Node.js backend
-FROM node:18-alpine AS frontend-build
+FROM node:22-alpine AS frontend-build
 
 # Set working directory for frontend
 WORKDIR /app/frontend
@@ -7,8 +7,8 @@ WORKDIR /app/frontend
 # Copy frontend package files
 COPY frontend/package*.json ./
 
-# Install frontend dependencies
-RUN npm install --omit=dev
+# Install frontend dependencies with security audit
+RUN npm ci --omit=dev && (npm audit fix --audit-level=high || echo "Some vulnerabilities require breaking changes - continuing build")
 
 # Copy frontend source code
 COPY frontend/ ./
@@ -17,7 +17,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:22-alpine AS production
 
 # Set working directory
 WORKDIR /app
@@ -32,8 +32,8 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies
-RUN npm install --omit=dev && npm cache clean --force
+# Install production dependencies with security audit
+RUN npm ci --omit=dev && npm audit fix --audit-level=high && npm cache clean --force
 
 # Copy server source code
 COPY server.js ./

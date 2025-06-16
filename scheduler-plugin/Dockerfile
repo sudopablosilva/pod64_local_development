@@ -14,6 +14,9 @@ RUN go mod download
 # Etapa 3: copiar o restante do código
 COPY . .
 
+# Etapa 3.5: garantir que go.sum está sincronizado
+RUN go mod tidy
+
 # Etapa 4: build da aplicação
 RUN CGO_ENABLED=0 GOOS=linux go build -o scheduler-plugin .
 

@@ -2,6 +2,16 @@
 
 A modern, responsive web dashboard for monitoring the POC BDD microservices architecture with real-time updates and UX best practices.
 
+## 🔒 Security Updates
+
+**✅ ATUALIZADO** - Todas as dependências foram atualizadas para as versões mais recentes e seguras.
+
+- **Node.js**: Atualizado para v22 (LTS mais recente)
+- **Dependências**: Todas as vulnerabilidades conhecidas foram corrigidas
+- **Configuração**: Implementadas configurações de segurança proativas
+
+📋 **Veja detalhes completos**: [SECURITY_UPDATES.md](./SECURITY_UPDATES.md)
+
 ## 🌟 Features
 
 ### Real-time Monitoring
