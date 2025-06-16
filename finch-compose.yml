@@ -51,8 +51,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=test
       - SERVICE_PORT=8080
       - SQS_QUEUE_URL=http://localstack:4566/000000000000/job-requests
+      - JMI_URL=http://jmi:8080
     depends_on:
       - localstack
+      - jmi
     networks:
       - app-network
 

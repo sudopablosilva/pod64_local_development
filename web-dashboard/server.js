@@ -35,7 +35,7 @@ app.use(express.static(path.join(__dirname, 'frontend/build')));
 
 // Service configuration
 const SERVICES = [
-  { name: 'Control-M', port: isDocker ? 8080 : 4333, host: isDocker ? 'control-m' : 'localhost', endpoint: '/health' },
+  { name: 'Control-M', port: isDocker ? 8080 : 8081, host: isDocker ? 'control-m' : 'localhost', endpoint: '/health' },
   { name: 'JMI', port: isDocker ? 8080 : 4333, host: isDocker ? 'jmi' : 'localhost', endpoint: '/health' },
   { name: 'JMW', port: isDocker ? 8080 : 8080, host: isDocker ? 'jmw' : 'localhost', endpoint: '/health' },
   { name: 'JMR', port: isDocker ? 8080 : 8084, host: isDocker ? 'jmr' : 'localhost', endpoint: '/health' },
@@ -65,7 +65,7 @@ async function checkServiceHealth(service) {
   try {
     const url = `http://${service.host}:${service.port}${service.endpoint}`;
     const response = await axios.get(url, {
-      timeout: 2000
+      timeout: 5000
     });
     return {
       ...service,
@@ -116,7 +116,7 @@ function normalizeQueueData(queues) {
 // Utility function to fetch data from endpoints
 async function fetchEndpointData(url) {
   try {
-    const response = await axios.get(url, { timeout: 3000 });
+    const response = await axios.get(url, { timeout: 10000 });
     const data = response.data;
     
     // Normalize data based on endpoint

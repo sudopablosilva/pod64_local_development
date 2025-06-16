@@ -90,11 +90,11 @@ done
 
 ### 3. **Executar Testes**
 ```bash
-# Teste completo do fluxo
+# Teste completo do fluxo (via Control-M → JMI)
 ./test-complete-flow.sh
 
-# Teste individual
-curl -X POST http://localhost:4333/startExecution \
+# Teste individual via Control-M
+curl -X POST http://localhost:8081/startExecution \
   -H "Content-Type: application/json" \
   -d '{"executionName": "TESTE_001"}'
 ```
