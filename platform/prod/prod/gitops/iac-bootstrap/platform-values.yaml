@@ -9,9 +9,9 @@ controlPlaneAccount:
 shardMapping:
   ##### Shards para ambientes de HOM e PROD -- NAO UTILIZAR PARA TESTES #############
   - shard: "0"
-    eksAsgMin: 3
-    eksAsgDesired: 3
-    eksAsgMax: 15
+    eksAsgMin: 0
+    eksAsgDesired: 0
+    eksAsgMax: 0
     runtimeVersion: 2.0.37
     jobManagerWorkerAppImageVersion: v0.0.3-9050396
     jobManagerRunnerAppImageVersion: v0.0.5-0861e30
