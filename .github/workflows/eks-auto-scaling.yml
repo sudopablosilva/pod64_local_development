@@ -80,5 +80,3 @@ jobs:
           commit_user_name: GitHub Actions
           commit_user_email: github-actions@github.com
           commit_author: GitHub Actions <github-actions@github.com>
-          # Use the PAT for authentication
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
