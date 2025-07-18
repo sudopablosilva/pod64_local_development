@@ -2,7 +2,7 @@ name: EKS Cluster Auto Scaling
 
 permissions:
   contents: write
-  
+
 on:
   schedule:
     # Monday at 7am - Scale out
@@ -20,7 +20,7 @@ jobs:
         with:
           ref: feature/control-plane-ops
           fetch-depth: 0
-          # token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
 
       - name: Set scaling parameters based on day and time
         id: set-scaling
@@ -59,77 +59,56 @@ jobs:
           echo "max=$MAX" >> $GITHUB_OUTPUT
           echo "operation=$OPERATION" >> $GITHUB_OUTPUT
 
-      - name: Create Python script to update YAML
+      - name: Examine file structure
         run: |
-          cat > update_yaml.py << 'EOF'
-          import yaml
-          import sys
-
-          def update_shard_values(file_path, min_val, desired_val, max_val):
-              # Load the YAML file
-              with open(file_path, 'r') as file:
-                  data = yaml.safe_load(file)
-              
-              # Make a copy of the original data for comparison
-              original_data = yaml.safe_dump(data)
-              
-              # Find and update shard "0" values
-              if 'shardMapping' in data:
-                  for shard in data['shardMapping']:
-                      if shard.get('shard') == "0":
-                          print(f"Found shard '0', updating values...")
-                          shard['eksAsgMin'] = int(min_val)
-                          shard['eksAsgDesired'] = int(desired_val)
-                          shard['eksAsgMax'] = int(max_val)
-                          break
-                  else:
-                      print("WARNING: Could not find shard '0' in the file")
-              else:
-                  print("WARNING: No 'shardMapping' section found in the file")
-              
-              # Write the updated YAML back to the file
-              with open(file_path, 'w') as file:
-                  yaml.dump(data, file, default_flow_style=False, sort_keys=False)
-              
-              # Check if changes were made
-              new_data = yaml.safe_dump(data)
-              if original_data == new_data:
-                  print("No changes were made to the file")
-              else:
-                  print(f"Successfully updated shard '0' values to: Min={min_val}, Desired={desired_val}, Max={max_val}")
-
-          if __name__ == "__main__":
-              if len(sys.argv) != 5:
-                  print("Usage: python update_yaml.py <file_path> <min> <desired> <max>")
-                  sys.exit(1)
-                  
-              file_path = sys.argv[1]
-              min_val = sys.argv[2]
-              desired_val = sys.argv[3]
-              max_val = sys.argv[4]
-              
-              update_shard_values(file_path, min_val, desired_val, max_val)
-          EOF
+          FILE_PATH="platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml"
           
-          chmod +x update_yaml.py
+          echo "=== First 30 lines of the file ==="
+          head -n 30 "$FILE_PATH"
+          echo "=== End of preview ==="
+          
+          echo "=== Looking for shard: \"0\" section ==="
+          grep -n -A 5 'shard: "0"' "$FILE_PATH" || echo "Pattern not found"
+          echo "=== End of search ==="
 
-      - name: Update platform-values.yaml for shard 0 only
+      - name: Update platform-values.yaml using sed
         run: |
           FILE_PATH="platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml"
           
           # Make a backup of the original file
           cp "$FILE_PATH" "${FILE_PATH}.bak"
           
-          # Run the Python script to update the YAML file
-          python update_yaml.py "$FILE_PATH" \
-            ${{ steps.set-scaling.outputs.min }} \
-            ${{ steps.set-scaling.outputs.desired }} \
-            ${{ steps.set-scaling.outputs.max }}
+          # Use sed with line number context to update only the values after shard: "0"
+          # First, find the line number where shard: "0" appears
+          SHARD_LINE=$(grep -n 'shard: "0"' "$FILE_PATH" | cut -d: -f1)
+          
+          if [ -n "$SHARD_LINE" ]; then
+            echo "Found 'shard: \"0\"' at line $SHARD_LINE"
+            
+            # Calculate the line numbers for the values we want to update
+            # These offsets may need adjustment based on the actual file structure
+            MIN_LINE=$((SHARD_LINE + 1))
+            DESIRED_LINE=$((SHARD_LINE + 2))
+            MAX_LINE=$((SHARD_LINE + 3))
+            
+            # Update the values using sed with line numbers
+            sed -i "${MIN_LINE}s/eksAsgMin:.*/eksAsgMin: ${{ steps.set-scaling.outputs.min }}/" "$FILE_PATH"
+            sed -i "${DESIRED_LINE}s/eksAsgDesired:.*/eksAsgDesired: ${{ steps.set-scaling.outputs.desired }}/" "$FILE_PATH"
+            sed -i "${MAX_LINE}s/eksAsgMax:.*/eksAsgMax: ${{ steps.set-scaling.outputs.max }}/" "$FILE_PATH"
+            
+            echo "Updated values at lines $MIN_LINE, $DESIRED_LINE, and $MAX_LINE"
+          else
+            echo "WARNING: Could not find 'shard: \"0\"' in the file"
+            exit 1
+          fi
           
           # Show the changes made
           echo "=== Changes made to the file ==="
           diff "${FILE_PATH}.bak" "$FILE_PATH" || true
           echo "=== End of changes ==="
+          
+          echo "Updated scaling parameters for shard 0 only to: Min=${{ steps.set-scaling.outputs.min }}, Desired=${{ steps.set-scaling.outputs.desired }}, Max=${{ steps.set-scaling.outputs.max }}"
+          echo "Operation: ${{ steps.set-scaling.outputs.operation }}"
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v4
