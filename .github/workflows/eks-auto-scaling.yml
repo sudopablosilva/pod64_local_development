@@ -59,26 +59,13 @@ jobs:
           echo "max=$MAX" >> $GITHUB_OUTPUT
           echo "operation=$OPERATION" >> $GITHUB_OUTPUT
 
-      - name: Examine file structure
-        run: |
-          FILE_PATH="platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml"
-          
-          echo "=== First 30 lines of the file ==="
-          head -n 30 "$FILE_PATH"
-          echo "=== End of preview ==="
-          
-          echo "=== Looking for shard: \"0\" section ==="
-          grep -n -A 5 'shard: "0"' "$FILE_PATH" || echo "Pattern not found"
-          echo "=== End of search ==="
-
-      - name: Update platform-values.yaml using sed
+      - name: Update platform-values.yaml using sed with exact spacing
         run: |
           FILE_PATH="platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml"
           
           # Make a backup of the original file
           cp "$FILE_PATH" "${FILE_PATH}.bak"
           
-          # Use sed with line number context to update only the values after shard: "0"
           # First, find the line number where shard: "0" appears
           SHARD_LINE=$(grep -n 'shard: "0"' "$FILE_PATH" | cut -d: -f1)
           
@@ -86,15 +73,19 @@ jobs:
             echo "Found 'shard: \"0\"' at line $SHARD_LINE"
             
             # Calculate the line numbers for the values we want to update
-            # These offsets may need adjustment based on the actual file structure
             MIN_LINE=$((SHARD_LINE + 1))
             DESIRED_LINE=$((SHARD_LINE + 2))
             MAX_LINE=$((SHARD_LINE + 3))
             
-            # Update the values using sed with line numbers
-            sed -i "${MIN_LINE}s/eksAsgMin:.*/eksAsgMin: ${{ steps.set-scaling.outputs.min }}/" "$FILE_PATH"
-            sed -i "${DESIRED_LINE}s/eksAsgDesired:.*/eksAsgDesired: ${{ steps.set-scaling.outputs.desired }}/" "$FILE_PATH"
-            sed -i "${MAX_LINE}s/eksAsgMax:.*/eksAsgMax: ${{ steps.set-scaling.outputs.max }}/" "$FILE_PATH"
+            # Get the indentation from the original lines
+            MIN_INDENT=$(grep -A 1 'shard: "0"' "$FILE_PATH" | tail -n 1 | sed 's/eksAsgMin:.*//')
+            DESIRED_INDENT=$(grep -A 2 'shard: "0"' "$FILE_PATH" | tail -n 1 | sed 's/eksAsgDesired:.*//')
+            MAX_INDENT=$(grep -A 3 'shard: "0"' "$FILE_PATH" | tail -n 1 | sed 's/eksAsgMax:.*//')
+            
+            # Update the values using sed with line numbers and preserving indentation
+            sed -i "${MIN_LINE}s/.*/${MIN_INDENT}eksAsgMin: ${{ steps.set-scaling.outputs.min }}/" "$FILE_PATH"
+            sed -i "${DESIRED_LINE}s/.*/${DESIRED_INDENT}eksAsgDesired: ${{ steps.set-scaling.outputs.desired }}/" "$FILE_PATH"
+            sed -i "${MAX_LINE}s/.*/${MAX_INDENT}eksAsgMax: ${{ steps.set-scaling.outputs.max }}/" "$FILE_PATH"
             
             echo "Updated values at lines $MIN_LINE, $DESIRED_LINE, and $MAX_LINE"
           else
