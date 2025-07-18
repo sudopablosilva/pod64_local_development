@@ -19,9 +19,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: feature/control-plane-ops
-          # Make sure to fetch with sufficient depth for history
           fetch-depth: 0
-          # Use PAT for checkout
           # token: ${{ secrets.REPO_ACCESS_TOKEN }}
 
       - name: Set scaling parameters based on day and time
@@ -61,40 +59,77 @@ jobs:
           echo "max=$MAX" >> $GITHUB_OUTPUT
           echo "operation=$OPERATION" >> $GITHUB_OUTPUT
 
+      - name: Create Python script to update YAML
+        run: |
+          cat > update_yaml.py << 'EOF'
+          import yaml
+          import sys
+
+          def update_shard_values(file_path, min_val, desired_val, max_val):
+              # Load the YAML file
+              with open(file_path, 'r') as file:
+                  data = yaml.safe_load(file)
+              
+              # Make a copy of the original data for comparison
+              original_data = yaml.safe_dump(data)
+              
+              # Find and update shard "0" values
+              if 'shardMapping' in data:
+                  for shard in data['shardMapping']:
+                      if shard.get('shard') == "0":
+                          print(f"Found shard '0', updating values...")
+                          shard['eksAsgMin'] = int(min_val)
+                          shard['eksAsgDesired'] = int(desired_val)
+                          shard['eksAsgMax'] = int(max_val)
+                          break
+                  else:
+                      print("WARNING: Could not find shard '0' in the file")
+              else:
+                  print("WARNING: No 'shardMapping' section found in the file")
+              
+              # Write the updated YAML back to the file
+              with open(file_path, 'w') as file:
+                  yaml.dump(data, file, default_flow_style=False, sort_keys=False)
+              
+              # Check if changes were made
+              new_data = yaml.safe_dump(data)
+              if original_data == new_data:
+                  print("No changes were made to the file")
+              else:
+                  print(f"Successfully updated shard '0' values to: Min={min_val}, Desired={desired_val}, Max={max_val}")
+
+          if __name__ == "__main__":
+              if len(sys.argv) != 5:
+                  print("Usage: python update_yaml.py <file_path> <min> <desired> <max>")
+                  sys.exit(1)
+                  
+              file_path = sys.argv[1]
+              min_val = sys.argv[2]
+              desired_val = sys.argv[3]
+              max_val = sys.argv[4]
+              
+              update_shard_values(file_path, min_val, desired_val, max_val)
+          EOF
+          
+          chmod +x update_yaml.py
+
       - name: Update platform-values.yaml for shard 0 only
         run: |
-          # Path to the platform-values.yaml file
           FILE_PATH="platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml"
           
-          # Create a temporary file for processing
-          TMP_FILE=$(mktemp)
+          # Make a backup of the original file
+          cp "$FILE_PATH" "${FILE_PATH}.bak"
           
-          # Use awk to process the file and update only shard "0" values
-          awk -v min="${{ steps.set-scaling.outputs.min }}" \
-              -v desired="${{ steps.set-scaling.outputs.desired }}" \
-              -v max="${{ steps.set-scaling.outputs.max }}" '
-          BEGIN { in_shard_0 = 0; }
+          # Run the Python script to update the YAML file
+          python update_yaml.py "$FILE_PATH" \
+            ${{ steps.set-scaling.outputs.min }} \
+            ${{ steps.set-scaling.outputs.desired }} \
+            ${{ steps.set-scaling.outputs.max }}
           
-          # Detect when we enter shard "0" section
-          /shard: "0"/ { in_shard_0 = 1; print; next; }
-          
-          # If we are in shard "0" section, replace the values
-          in_shard_0 && /eksAsgMin:/ { print "      eksAsgMin: " min; next; }
-          in_shard_0 && /eksAsgDesired:/ { print "      eksAsgDesired: " desired; next; }
-          in_shard_0 && /eksAsgMax:/ { print "      eksAsgMax: " max; next; }
-          
-          # Detect when we exit shard "0" section (next shard or end of shardMapping)
-          /shard: "[^0]/ { in_shard_0 = 0; }
-          
-          # Print all other lines unchanged
-          { print; }
-          ' "$FILE_PATH" > "$TMP_FILE"
-          
-          # Replace the original file with our modified version
-          mv "$TMP_FILE" "$FILE_PATH"
-          
-          echo "Updated scaling parameters for shard 0 only to: Min=${{ steps.set-scaling.outputs.min }}, Desired=${{ steps.set-scaling.outputs.desired }}, Max=${{ steps.set-scaling.outputs.max }}"
-          echo "Operation: ${{ steps.set-scaling.outputs.operation }}"
+          # Show the changes made
+          echo "=== Changes made to the file ==="
+          diff "${FILE_PATH}.bak" "$FILE_PATH" || true
+          echo "=== End of changes ==="
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v4
