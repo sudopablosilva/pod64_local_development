@@ -1,0 +1,17 @@
+controlPlaneAccount:
+  accountId: "992382362916" # ID da conta AWS onde o Control Plane está localizado. O Control Plane é responsável por gerenciar a configuração e o controle centralizado de todos os clusters de Kubernetes.
+  region: "sa-east-1" # Região AWS onde o Control Plane está operando. É importante que o Control Plane e os clusters de runtime estejam na mesma região ou em regiões próximas para reduzir latência.
+  oidcId: "" # ID do OIDC (OpenID Connect) usado para autenticação e autorização no cluster Kubernetes. Este ID é utilizado para integrar o Kubernetes com serviços da AWS, permitindo acesso seguro a recursos da nuvem.
+  environment: "prod" #Utilizado para instalação da Aplicação Argo Microsserviços na conta batchops Control-Plane, exemplo: Criador de certificado ACM
+  targetRevision: "main" # Branch do repositório Git que contém a versão do código-fonte que será implantada no Control Plane.
+  controlPlaneEnvironment: prod
+
+shardMapping:
+  ##### Shards para ambientes de HOM e PROD -- NAO UTILIZAR PARA TESTES #############
+  - shard: "0"
+    eksAsgMin: 3
+    eksAsgDesired: 3
+    eksAsgMax: 15
+    runtimeVersion: 2.0.37
+    jobManagerWorkerAppImageVersion: v0.0.3-9050396
+    jobManagerRunnerAppImageVersion: v0.0.5-0861e30

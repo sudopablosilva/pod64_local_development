@@ -1,0 +1,82 @@
+name: EKS Cluster Auto Scaling
+
+on:
+  schedule:
+    # Monday at 7am - Scale out
+    - cron: '0 7 * * 1'
+    # Friday at 8pm - Scale in
+    - cron: '0 20 * * 5'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-scaling-values:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: feature/control-plane-ops
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set scaling parameters based on day and time
+        id: set-scaling
+        run: |
+          # Get current day of week (1-7, where 1 is Monday)
+          DAY=$(date +%u)
+          # Get current hour (0-23)
+          HOUR=$(date +%H)
+          
+          # Default to scale out values (Monday morning)
+          MIN=3
+          DESIRED=3
+          MAX=10
+          OPERATION="scale-out"
+          
+          # If it's Friday and after 8pm, or if manually triggered on Friday after 8pm, use scale in values
+          if [[ ($DAY -eq 5 && $HOUR -ge 20) || (${{ github.event_name }} == 'workflow_dispatch' && $DAY -eq 5 && $HOUR -ge 20) ]]; then
+            MIN=0
+            DESIRED=0
+            MAX=0
+            OPERATION="scale-in"
+          fi
+          
+          # If it's Monday and before 7am, use scale in values (still weekend)
+          if [[ ($DAY -eq 1 && $HOUR -lt 7) || (${{ github.event_name }} == 'workflow_dispatch' && $DAY -eq 1 && $HOUR -lt 7) ]]; then
+            MIN=0
+            DESIRED=0
+            MAX=0
+            OPERATION="scale-in"
+          fi
+          
+          echo "min=$MIN" >> $GITHUB_OUTPUT
+          echo "desired=$DESIRED" >> $GITHUB_OUTPUT
+          echo "max=$MAX" >> $GITHUB_OUTPUT
+          echo "operation=$OPERATION" >> $GITHUB_OUTPUT
+
+      - name: Update platform-values.yaml
+        run: |
+          # Path to the platform-values.yaml file
+          FILE_PATH="platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml"
+          
+          # Update the values using sed
+          sed -i "s/eksAsgMin:.*/eksAsgMin: ${{ steps.set-scaling.outputs.min }}/" $FILE_PATH
+          sed -i "s/eksAsgDesired:.*/eksAsgDesired: ${{ steps.set-scaling.outputs.desired }}/" $FILE_PATH
+          sed -i "s/eksAsgMax:.*/eksAsgMax: ${{ steps.set-scaling.outputs.max }}/" $FILE_PATH
+          
+          echo "Updated scaling parameters to: Min=${{ steps.set-scaling.outputs.min }}, Desired=${{ steps.set-scaling.outputs.desired }}, Max=${{ steps.set-scaling.outputs.max }}"
+          echo "Operation: ${{ steps.set-scaling.outputs.operation }}"
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions@github.com"
+          git config --local user.name "GitHub Actions"
+          
+          git add platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto ${{ steps.set-scaling.outputs.operation }}: Update EKS scaling parameters"
+            git push
+          fi
