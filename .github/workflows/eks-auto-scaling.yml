@@ -16,7 +16,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: feature/control-plane-ops
-          # Use a PAT instead of the default GITHUB_TOKEN
+          # Make sure to fetch with sufficient depth for history
+          fetch-depth: 0
+          # Use PAT for checkout
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
 
       - name: Set scaling parameters based on day and time
@@ -27,26 +29,28 @@ jobs:
           # Get current hour (0-23)
           HOUR=$(date +%H)
           
-          # Default to scale out values (Monday morning)
-          MIN=3
-          DESIRED=3
-          MAX=10
-          OPERATION="scale-out"
-          
-          # If it's Friday and after 8pm, or if manually triggered on Friday after 8pm, use scale in values
-          if [[ ($DAY -eq 5 && $HOUR -ge 20) || (${{ github.event_name }} == 'workflow_dispatch' && $DAY -eq 5 && $HOUR -ge 20) ]]; then
-            MIN=0
-            DESIRED=0
-            MAX=0
-            OPERATION="scale-in"
+          # For testing purposes, determine operation based on workflow_dispatch or schedule
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Allow manual selection via input when manually triggered
+            OPERATION="${{ github.event.inputs.operation || 'scale-out' }}"
+          else
+            # Default based on schedule
+            if [[ "${{ github.event.schedule }}" == "0 7 * * 1" ]]; then
+              OPERATION="scale-out"
+            else
+              OPERATION="scale-in"
+            fi
           fi
           
-          # If it's Monday and before 7am, use scale in values (still weekend)
-          if [[ ($DAY -eq 1 && $HOUR -lt 7) || (${{ github.event_name }} == 'workflow_dispatch' && $DAY -eq 1 && $HOUR -lt 7) ]]; then
+          # Set values based on operation
+          if [[ "$OPERATION" == "scale-in" ]]; then
             MIN=0
             DESIRED=0
             MAX=0
-            OPERATION="scale-in"
+          else
+            MIN=3
+            DESIRED=3
+            MAX=10
           fi
           
           echo "min=$MIN" >> $GITHUB_OUTPUT
@@ -68,17 +72,13 @@ jobs:
           echo "Operation: ${{ steps.set-scaling.outputs.operation }}"
 
       - name: Commit and push changes
-        run: |
-          git config --local user.email "github-actions@github.com"
-          git config --local user.name "GitHub Actions"
-          
-          git add platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml
-          
-          # Only commit if there are changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Auto ${{ steps.set-scaling.outputs.operation }}: Update EKS scaling parameters"
-            # Use the PAT for pushing
-            git push https://${{ secrets.REPO_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git HEAD:feature/control-plane-ops
-          fi
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Auto ${{ steps.set-scaling.outputs.operation }}: Update EKS scaling parameters"
+          branch: feature/control-plane-ops
+          file_pattern: platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml
+          commit_user_name: GitHub Actions
+          commit_user_email: github-actions@github.com
+          commit_author: GitHub Actions <github-actions@github.com>
+          # Use the PAT for authentication
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
