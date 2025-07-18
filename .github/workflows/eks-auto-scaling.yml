@@ -1,9 +1,8 @@
 name: EKS Cluster Auto Scaling
 
-# Add permissions block to elevate GITHUB_TOKEN permissions
 permissions:
   contents: write
-
+  
 on:
   schedule:
     # Monday at 7am - Scale out
@@ -20,27 +19,89 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: feature/control-plane-ops
+          # Make sure to fetch with sufficient depth for history
           fetch-depth: 0
-          # Using default GITHUB_TOKEN
+          # Use PAT for checkout
+          # token: ${{ secrets.REPO_ACCESS_TOKEN }}
 
-      # Rest of the workflow remains the same
-      
       - name: Set scaling parameters based on day and time
         id: set-scaling
         run: |
-          # Same as your working workflow
+          # Get current day of week (1-7, where 1 is Monday)
+          DAY=$(date +%u)
+          # Get current hour (0-23)
+          HOUR=$(date +%H)
           
-      - name: Update platform-values.yaml
+          # For testing purposes, determine operation based on workflow_dispatch or schedule
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Allow manual selection via input when manually triggered
+            OPERATION="${{ github.event.inputs.operation || 'scale-out' }}"
+          else
+            # Default based on schedule
+            if [[ "${{ github.event.schedule }}" == "0 7 * * 1" ]]; then
+              OPERATION="scale-out"
+            else
+              OPERATION="scale-in"
+            fi
+          fi
+          
+          # Set values based on operation
+          if [[ "$OPERATION" == "scale-in" ]]; then
+            MIN=0
+            DESIRED=0
+            MAX=0
+          else
+            MIN=3
+            DESIRED=3
+            MAX=10
+          fi
+          
+          echo "min=$MIN" >> $GITHUB_OUTPUT
+          echo "desired=$DESIRED" >> $GITHUB_OUTPUT
+          echo "max=$MAX" >> $GITHUB_OUTPUT
+          echo "operation=$OPERATION" >> $GITHUB_OUTPUT
+
+      - name: Update platform-values.yaml for shard 0 only
         run: |
-          # Same as your working workflow
+          # Path to the platform-values.yaml file
+          FILE_PATH="platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml"
           
+          # Create a temporary file for processing
+          TMP_FILE=$(mktemp)
+          
+          # Use awk to process the file and update only shard "0" values
+          awk -v min="${{ steps.set-scaling.outputs.min }}" \
+              -v desired="${{ steps.set-scaling.outputs.desired }}" \
+              -v max="${{ steps.set-scaling.outputs.max }}" '
+          BEGIN { in_shard_0 = 0; }
+          
+          # Detect when we enter shard "0" section
+          /shard: "0"/ { in_shard_0 = 1; print; next; }
+          
+          # If we are in shard "0" section, replace the values
+          in_shard_0 && /eksAsgMin:/ { print "      eksAsgMin: " min; next; }
+          in_shard_0 && /eksAsgDesired:/ { print "      eksAsgDesired: " desired; next; }
+          in_shard_0 && /eksAsgMax:/ { print "      eksAsgMax: " max; next; }
+          
+          # Detect when we exit shard "0" section (next shard or end of shardMapping)
+          /shard: "[^0]/ { in_shard_0 = 0; }
+          
+          # Print all other lines unchanged
+          { print; }
+          ' "$FILE_PATH" > "$TMP_FILE"
+          
+          # Replace the original file with our modified version
+          mv "$TMP_FILE" "$FILE_PATH"
+          
+          echo "Updated scaling parameters for shard 0 only to: Min=${{ steps.set-scaling.outputs.min }}, Desired=${{ steps.set-scaling.outputs.desired }}, Max=${{ steps.set-scaling.outputs.max }}"
+          echo "Operation: ${{ steps.set-scaling.outputs.operation }}"
+
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "Auto ${{ steps.set-scaling.outputs.operation }}: Update EKS scaling parameters"
+          commit_message: "Auto ${{ steps.set-scaling.outputs.operation }}: Update EKS scaling parameters for shard 0"
           branch: feature/control-plane-ops
           file_pattern: platform/prod/prod/gitops/iac-bootstrap/platform-values.yaml
           commit_user_name: GitHub Actions
           commit_user_email: github-actions@github.com
           commit_author: GitHub Actions <github-actions@github.com>
-          # No token needed, uses GITHUB_TOKEN by default
