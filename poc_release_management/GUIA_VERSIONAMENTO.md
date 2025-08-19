@@ -135,6 +135,20 @@ O script segue esta lógica para determinar a versão global:
 3. **Versão base**: Maior versão atual entre todos os repositórios
 4. **Versão final**: Aplica o bump de maior prioridade na versão base
 
+### ⚠️ Comportamento Importante: Commits Já Processados
+
+O script **sempre considera os últimos 10 commits** de cada repositório, incluindo commits que já foram processados em releases anteriores.
+
+**Cenário comum:**
+1. Microserviço A tem commit `feat!:` (major) → Release v2.0.0
+2. Microserviço B recebe commit `feat:` (minor)
+3. Próxima execução ainda vê o `feat!:` do microserviço A → Sugere major novamente
+
+**Isso é esperado** no modelo monolítico porque:
+- ✅ Garante que todos os serviços sempre tenham a mesma versão
+- ✅ Evita incompatibilidades entre versões diferentes
+- ✅ Simplifica o gerenciamento de dependências
+
 ### Exemplo Prático
 
 **Estado atual:**
@@ -147,6 +161,29 @@ O script segue esta lógica para determinar a versão global:
 - **Bump global**: major (maior prioridade)
 - **Versão base**: 1.2.1 (maior versão atual)
 - **Nova versão**: 2.0.0 (major bump)
+
+## Estratégias de Versionamento
+
+### Opção 1: Monolítico Puro (Atual)
+**Comportamento:** Todos os serviços sempre têm a mesma versão
+```bash
+# Primeira execução: microserviço A com feat!
+python version_manager_pr.py  # → v2.0.0 para todos
+
+# Segunda execução: microserviço B com feat
+python version_manager_pr.py  # → v3.0.0 para todos (ainda vê o feat! do A)
+```
+
+### Opção 2: Baseado em Tags (Alternativa)
+**Comportamento:** Considera apenas commits desde a última tag
+- Requer modificação do script para usar `git describe --tags`
+- Commits já "taggeados" não influenciam próximas releases
+- Mais complexo, mas evita re-processamento
+
+### Opção 3: Híbrido
+**Comportamento:** Permite releases independentes com alinhamento periódico
+- Releases individuais para mudanças menores
+- Alinhamento monolítico para breaking changes
 
 ## Fluxo de Trabalho Recomendado
 
@@ -194,3 +231,13 @@ python version_manager_pr.py            # Execute
 ### Versão não mudou
 - Se todos os commits são irrelevantes (docs, chore), a versão não muda
 - Apenas commits fix, feat, e breaking changes afetam a versão
+
+### "Sempre sugere major mesmo após release"
+- **Comportamento esperado** no modelo monolítico atual
+- O script sempre analisa os últimos 10 commits, incluindo os já processados
+- **Solução**: Execute releases em lotes ou considere implementar versionamento baseado em tags
+
+### Como evitar re-processamento de commits
+1. **Agrupe mudanças**: Faça releases menos frequentes com múltiplas mudanças
+2. **Use branches de release**: Crie branches específicas para cada release
+3. **Considere tags**: Modifique o script para considerar apenas commits desde a última tag
