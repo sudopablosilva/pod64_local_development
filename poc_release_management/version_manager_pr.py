@@ -9,14 +9,14 @@ from typing import List, Tuple, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ========================
-# Configurações
+# Configuracoes
 # ========================
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-GITHUB_USER = "seu-usuario"  # opcional, não é estritamente necessário
+GITHUB_USER = "seu-usuario"  # opcional, nao e estritamente necessario
 COMMIT_RANGE = "HEAD~10..HEAD"
 BREAKING_PATTERNS = [r"BREAKING CHANGE", r"!\s", r"\bmajor\b"]
 
-# Informe aqui seus repositórios locais
+# Informe aqui seus repositorios locais
 REPOSITORIES: Dict[str, str] = {
     # Control plane
     "control-plane_service-auth": "./.repos/control-plane_service-auth",
@@ -28,7 +28,7 @@ REPOSITORIES: Dict[str, str] = {
 
 
 # ========================
-# Utilitários
+# Utilitarios
 # ========================
 def run_git(repo: Path, args: List[str]) -> str:
     return subprocess.run(
@@ -113,7 +113,7 @@ def format_changelog(
     date = datetime.today().strftime("%Y-%m-%d")
     out = [f"## [{version}] - {date}"]
     if aligned_only:
-        out.append("- Alinhamento de versão (sem mudanças de código neste serviço)")
+        out.append("- Alinhamento de versao (sem mudancas de codigo neste servico)")
     else:
         for commit in commits:
             out.append(f"- {commit}")
@@ -178,28 +178,28 @@ def create_pull_request(
 ):
     owner, repo, platform = get_repo_info(repo_path)
     if not owner or not repo:
-        print("[ERROR] Não foi possível identificar repositório a partir do remote origin.")
+        print("[ERROR] Nao foi possivel identificar repositorio a partir do remote origin.")
         return
 
     body = (
-        f"## Alinhamento de Release Monolítica v{version}\n\n"
-        f"Este MR/PR atualiza a versão para `{version}` como parte do alinhamento monolítico.\n\n"
+        f"## Alinhamento de Release Monolitica v{version}\n\n"
+        f"Este MR/PR atualiza a versao para `{version}` como parte do alinhamento monolitico.\n\n"
         f"**Tipo de bump:** {global_bump}\n\n"
         f"### Objetivo\n"
-        f"Todos os serviços desta release usam a **mesma versão** para garantir compatibilidade entre componentes.\n\n"
-        f"### Serviços atualizados nesta execução\n"
+        f"Todos os servicos desta release usam a **mesma versao** para garantir compatibilidade entre componentes.\n\n"
+        f"### Servicos atualizados nesta execucao\n"
         + "\n".join(f"- {name}" for name in updated_repos) +
         f"\n\n### Checklist\n"
-        f"- [x] Versão atualizada no arquivo VERSION\n"
+        f"- [x] Versao atualizada no arquivo VERSION\n"
         f"- [x] CHANGELOG.md atualizado\n"
         f"- [x] Tag criada localmente\n\n"
-        f"**Nota:** Este é um alinhamento automático de versão. Revisar e aprovar."
+        f"**Nota:** Este e um alinhamento automatico de versao. Revisar e aprovar."
     )
 
     if platform == "gitlab":
         print(f"[MR] Crie o merge request manualmente em:")
         print(
-            f"   https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D={branch}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{version}%20%E2%80%94%20alinhamento%20monol%C3%ADtico"
+            f"   https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D={branch}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{version}%20%E2%80%94%20alinhamento%20monolitico"
         )
         return
 
@@ -212,7 +212,7 @@ def create_pull_request(
         url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
         data = {
-            "title": f"Release v{version} — alinhamento monolítico",
+            "title": f"Release v{version} - alinhamento monolitico",
             "head": branch,
             "base": "develop",
             "body": body,
@@ -229,7 +229,7 @@ def create_pull_request(
 # ========================
 def main():
     parser = argparse.ArgumentParser(
-        description="Equaliza versões em múltiplos repositórios (monolithic alignment) com PR automático"
+        description="Equaliza versoes em multiplos repositorios (monolithic alignment) com PR automatico"
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Simula sem alterar nada"
@@ -237,11 +237,11 @@ def main():
     args = parser.parse_args()
 
     if not GITHUB_TOKEN and not args.dry_run:
-        print("[WARN] GITHUB_TOKEN não definido - PRs automáticos do GitHub serão manuais")
-        print("   URLs para criação manual serão fornecidas quando necessário")
+        print("[WARN] GITHUB_TOKEN nao definido - PRs automaticos do GitHub serao manuais")
+        print("   URLs para criacao manual serao fornecidas quando necessario")
 
-    # 1) Sincronizar repositórios para develop (sempre, mesmo em dry-run)
-    print("\n[SYNC] Sincronizando repositórios com develop...")
+    # 1) Sincronizar repositorios para develop (sempre, mesmo em dry-run)
+    print("\n[SYNC] Sincronizando repositorios com develop...")
     for name, path_str in REPOSITORIES.items():
         repo = Path(path_str)
         try:
@@ -250,7 +250,7 @@ def main():
         except Exception as e:
             print(f"   [WARN] {name}: {str(e)}")
     
-    # 2) Ler versões atuais e commits por repositório
+    # 2) Ler versoes atuais e commits por repositorio
     versions: Dict[str, str] = {}
     repo_commits: Dict[str, List[str]] = {}
     repo_bumps: Dict[str, str] = {}
@@ -271,9 +271,9 @@ def main():
         bump_type, _ = detect_bump_type(commits)
         repo_bumps[name] = bump_type
 
-        print(f"   • Versão atual: {current_version}")
-        print(f"   • Commits (últimos 10): {len(commits)}")
-        print(f"   • Bump sugerido por este repo: {bump_type}")
+        print(f"   - Versao atual: {current_version}")
+        print(f"   - Commits (ultimos 10): {len(commits)}")
+        print(f"   - Bump sugerido por este repo: {bump_type}")
 
     # 3) Calcular bump GLOBAL (prioridade major > minor > patch)
     if any(b == "major" for b in repo_bumps.values()):
@@ -283,7 +283,7 @@ def main():
     else:
         global_bump = "patch"
 
-    # 4) Escolher versão-base GLOBAL = maior semver entre todos
+    # 4) Escolher versao-base GLOBAL = maior semver entre todos
     global_base = "0.0.0"
     for v in versions.values():
         if semver_gt(v, global_base):
@@ -292,12 +292,12 @@ def main():
     new_version = bump_version(global_base, global_bump)
 
     print("\n================ Gerindo como monolito ================")
-    print(f"Versão-base global: {global_base}")
+    print(f"Versao-base global: {global_base}")
     print(f"Bump global: {global_bump}")
-    print(f"➡️  Nova versão global: {new_version}")
+    print(f"=> Nova versao global: {new_version}")
     print("======================================================")
 
-    # 5) Aplicar nova versão a todos os repositórios
+    # 5) Aplicar nova versao a todos os repositorios
     def process_repo(name: str) -> Tuple[Optional[str], str]:
         repo = Path(REPOSITORIES[name])
         current_version = versions[name]
@@ -308,13 +308,13 @@ def main():
         
         log_lines = []
         log_lines.append(f"[REPO] {name}")
-        log_lines.append(f"   • Versão atual: {current_version}")
-        log_lines.append(f"   • Nova versão global: {new_version}")
-        log_lines.append(f"   • Branch: {branch_name}")
+        log_lines.append(f"   - Versao atual: {current_version}")
+        log_lines.append(f"   - Nova versao global: {new_version}")
+        log_lines.append(f"   - Branch: {branch_name}")
 
         if args.dry_run:
             if current_version == new_version:
-                log_lines.append("   [SIM] Já está alinhado. Nenhuma ação seria necessária.")
+                log_lines.append("   [SIM] Ja esta alinhado. Nenhuma acao seria necessaria.")
                 return None, "\n".join(log_lines)
             log_lines.append(f"   [SIM] Processaria: {branch_name}")
             return name, "\n".join(log_lines)
@@ -332,7 +332,7 @@ def main():
                 log_lines.append(f"   [ERROR] Erro ao processar {name}: {str(e)}")
                 return None, "\n".join(log_lines)
         else:
-            log_lines.append("   [SKIP] Já está alinhado. Pulando alterações.")
+            log_lines.append("   [SKIP] Ja esta alinhado. Pulando alteracoes.")
             return None, "\n".join(log_lines)
 
     # Process repos in parallel and collect results
@@ -348,19 +348,19 @@ def main():
                 updated_repos.append(result)
     
     # Print all logs in order
-    print("\n================ Processamento dos Repositórios ================")
+    print("\n================ Processamento dos Repositorios ================")
     for log in sorted(repo_logs):
         print(log)
     print("================================================================")
 
-    # 6) Abrir PRs (um por repositório alterado)
+    # 6) Abrir PRs (um por repositorio alterado)
     if args.dry_run:
         if updated_repos:
-            print("\n[SIM] PRs/MRs seriam criados para os repositórios:")
+            print("\n[SIM] PRs/MRs seriam criados para os repositorios:")
             for r in updated_repos:
                 print(f"   - {r} (base: develop, head: atualizacao-versao-v{new_version})")
         else:
-            print("\n[SIM] Tudo já estava alinhado. Nenhum PR/MR seria necessário.")
+            print("\n[SIM] Tudo ja estava alinhado. Nenhum PR/MR seria necessario.")
     else:
         if updated_repos:
             print("\n[PR] Criando PRs/MRs...")
@@ -368,7 +368,7 @@ def main():
                 repo_path = Path(REPOSITORIES[name])
                 owner, repo, platform = get_repo_info(repo_path)
                 if platform == "gitlab":
-                    return f"[MR] {name}: https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=atualizacao-versao-v{new_version}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{new_version}%20%E2%80%94%20alinhamento%20monol%C3%ADtico"
+                    return f"[MR] {name}: https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=atualizacao-versao-v{new_version}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{new_version}%20alinhamento%20monolitico"
                 return f"[PR] {name}: GitHub PR criado"
 
             pr_results = []
@@ -382,7 +382,7 @@ def main():
                 print(result)
             print("==========================================================")
 
-    print("\n[DONE] Concluído.")
+    print("\n[DONE] Concluido.")
 
 
 if __name__ == "__main__":
