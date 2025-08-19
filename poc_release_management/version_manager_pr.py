@@ -178,7 +178,7 @@ def create_pull_request(
 ):
     owner, repo, platform = get_repo_info(repo_path)
     if not owner or not repo:
-        print("❌ Não foi possível identificar repositório a partir do remote origin.")
+        print("[ERROR] Não foi possível identificar repositório a partir do remote origin.")
         return
 
     body = (
@@ -197,7 +197,7 @@ def create_pull_request(
     )
 
     if platform == "gitlab":
-        print(f"🔁 Crie o merge request manualmente em:")
+        print(f"[MR] Crie o merge request manualmente em:")
         print(
             f"   https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D={branch}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{version}%20%E2%80%94%20alinhamento%20monol%C3%ADtico"
         )
@@ -205,7 +205,7 @@ def create_pull_request(
 
     if platform == "github":
         if not GITHUB_TOKEN:
-            print(f"🔁 Crie o pull request manualmente em:")
+            print(f"[PR] Crie o pull request manualmente em:")
             print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
             return
 
@@ -219,9 +219,9 @@ def create_pull_request(
         }
         response = requests.post(url, json=data, headers=headers)
         if response.ok:
-            print(f"🔁 PR criado: {response.json().get('html_url')}")
+            print(f"[PR] PR criado: {response.json().get('html_url')}")
         else:
-            print(f"❌ Falha ao criar PR: {response.status_code} - {response.text}")
+            print(f"[ERROR] Falha ao criar PR: {response.status_code} - {response.text}")
 
 
 # ========================
@@ -237,18 +237,18 @@ def main():
     args = parser.parse_args()
 
     if not GITHUB_TOKEN and not args.dry_run:
-        print("⚠️  GITHUB_TOKEN não definido - PRs automáticos do GitHub serão manuais")
+        print("[WARN] GITHUB_TOKEN não definido - PRs automáticos do GitHub serão manuais")
         print("   URLs para criação manual serão fornecidas quando necessário")
 
     # 1) Sincronizar repositórios para develop (sempre, mesmo em dry-run)
-    print("\n🔄 Sincronizando repositórios com develop...")
+    print("\n[SYNC] Sincronizando repositórios com develop...")
     for name, path_str in REPOSITORIES.items():
         repo = Path(path_str)
         try:
             sync_repo_to_develop(repo)
-            print(f"   ✅ {name} sincronizado")
+            print(f"   [OK] {name} sincronizado")
         except Exception as e:
-            print(f"   ⚠️  {name}: {str(e)}")
+            print(f"   [WARN] {name}: {str(e)}")
     
     # 2) Ler versões atuais e commits por repositório
     versions: Dict[str, str] = {}
@@ -257,7 +257,7 @@ def main():
 
     for name, path_str in REPOSITORIES.items():
         repo = Path(path_str)
-        print(f"\n🔍 Inspecionando {name} ({repo})")
+        print(f"\n[INFO] Inspecionando {name} ({repo})")
 
         version_path = repo / "VERSION"
         current_version = (
@@ -307,16 +307,16 @@ def main():
         branch_name = f"atualizacao-versao-v{new_version}"
         
         log_lines = []
-        log_lines.append(f"📦 {name}")
+        log_lines.append(f"[REPO] {name}")
         log_lines.append(f"   • Versão atual: {current_version}")
         log_lines.append(f"   • Nova versão global: {new_version}")
         log_lines.append(f"   • Branch: {branch_name}")
 
         if args.dry_run:
             if current_version == new_version:
-                log_lines.append("   💡 [simulação] Já está alinhado. Nenhuma ação seria necessária.")
+                log_lines.append("   [SIM] Já está alinhado. Nenhuma ação seria necessária.")
                 return None, "\n".join(log_lines)
-            log_lines.append(f"   💡 [simulação] Processaria: {branch_name}")
+            log_lines.append(f"   [SIM] Processaria: {branch_name}")
             return name, "\n".join(log_lines)
 
         if current_version != new_version:
@@ -326,13 +326,13 @@ def main():
                 update_changelog(repo, new_version, relevant, aligned_only=aligned_only)
                 commit_and_push(repo, branch_name, new_version)
                 create_tag(repo, new_version)
-                log_lines.append(f"   ✅ {name} processado")
+                log_lines.append(f"   [OK] {name} processado")
                 return name, "\n".join(log_lines)
             except Exception as e:
-                log_lines.append(f"   ❌ Erro ao processar {name}: {str(e)}")
+                log_lines.append(f"   [ERROR] Erro ao processar {name}: {str(e)}")
                 return None, "\n".join(log_lines)
         else:
-            log_lines.append("   ✔️ Já está alinhado. Pulando alterações.")
+            log_lines.append("   [SKIP] Já está alinhado. Pulando alterações.")
             return None, "\n".join(log_lines)
 
     # Process repos in parallel and collect results
@@ -356,20 +356,20 @@ def main():
     # 6) Abrir PRs (um por repositório alterado)
     if args.dry_run:
         if updated_repos:
-            print("\n📝 [simulação] PRs/MRs seriam criados para os repositórios:")
+            print("\n[SIM] PRs/MRs seriam criados para os repositórios:")
             for r in updated_repos:
                 print(f"   - {r} (base: develop, head: atualizacao-versao-v{new_version})")
         else:
-            print("\n📝 [simulação] Tudo já estava alinhado. Nenhum PR/MR seria necessário.")
+            print("\n[SIM] Tudo já estava alinhado. Nenhum PR/MR seria necessário.")
     else:
         if updated_repos:
-            print("\n🔁 Criando PRs/MRs...")
+            print("\n[PR] Criando PRs/MRs...")
             def create_pr_for_repo(name):
                 repo_path = Path(REPOSITORIES[name])
                 owner, repo, platform = get_repo_info(repo_path)
                 if platform == "gitlab":
-                    return f"🔁 {name}: https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=atualizacao-versao-v{new_version}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{new_version}%20%E2%80%94%20alinhamento%20monol%C3%ADtico"
-                return f"🔁 {name}: GitHub PR criado"
+                    return f"[MR] {name}: https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=atualizacao-versao-v{new_version}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{new_version}%20%E2%80%94%20alinhamento%20monol%C3%ADtico"
+                return f"[PR] {name}: GitHub PR criado"
 
             pr_results = []
             with ThreadPoolExecutor(max_workers=4) as executor:
@@ -382,7 +382,7 @@ def main():
                 print(result)
             print("==========================================================")
 
-    print("\n✅ Concluído.")
+    print("\n[DONE] Concluído.")
 
 
 if __name__ == "__main__":
