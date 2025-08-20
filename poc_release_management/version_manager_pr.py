@@ -59,16 +59,25 @@ def sync_repo_to_develop(repo: Path):
             run_git(repo, ["push", "-u", "origin", "develop"])
 
 
-def get_commits(repo: Path) -> List[str]:
+def get_commits_since_last_tag(repo: Path) -> List[str]:
+    """Get commits since last version tag, avoiding reprocessing"""
     try:
-        log = run_git(repo, ["log", COMMIT_RANGE, "--pretty=format:%s"])
+        # Try to get last version tag
+        last_tag = run_git(repo, ["describe", "--tags", "--abbrev=0", "--match=v*"])
+        # Get commits since last tag
+        log = run_git(repo, ["log", f"{last_tag}..HEAD", "--pretty=format:%s"])
     except subprocess.CalledProcessError:
-        # Fallback: get all commits if range fails
+        # No tags found, get recent commits
         try:
             log = run_git(repo, ["log", "--pretty=format:%s", "-10"])
         except subprocess.CalledProcessError:
             return []
     return [l for l in log.splitlines() if l.strip()]
+
+
+def get_commits(repo: Path) -> List[str]:
+    """Get commits for analysis - uses tag-based approach to avoid reprocessing"""
+    return get_commits_since_last_tag(repo)
 
 
 def detect_bump_type(commits: List[str]) -> Tuple[str, List[str]]:
@@ -140,14 +149,14 @@ def create_branch(repo: Path, branch: str):
 
 def commit_and_push(repo: Path, branch: str, version: str):
     run_git(repo, ["add", "VERSION", "CHANGELOG.md"])
-    run_git(repo, ["commit", "-m", f"chore: align monolithic release to {version}"])
+    run_git(repo, ["commit", "-m", f"chore: alinha release monolitico para {version}"])
     run_git(repo, ["push", "--set-upstream", "origin", branch])
 
 
 def create_tag(repo: Path, version: str):
     run_git(repo, ["tag", f"v{version}"])
-    # Para enviar imediatamente a tag, descomente:
-    # run_git(repo, ["push", "origin", f"v{version}"])
+    # Push tag immediately to mark commits as processed
+    run_git(repo, ["push", "origin", f"v{version}"])
 
 
 def get_repo_info(repo_path: Path) -> Tuple[str, str, str]:
@@ -270,9 +279,15 @@ def main():
 
         bump_type, _ = detect_bump_type(commits)
         repo_bumps[name] = bump_type
+        
+        # Debug: show which commits are being considered
+        if commits:
+            print(f"   - Commits encontrados: {commits[:3]}{'...' if len(commits) > 3 else ''}")
+        else:
+            print(f"   - Nenhum commit novo desde ultima tag")
 
         print(f"   - Versao atual: {current_version}")
-        print(f"   - Commits (ultimos 10): {len(commits)}")
+        print(f"   - Commits desde ultima tag: {len(commits)}")
         print(f"   - Bump sugerido por este repo: {bump_type}")
 
     # 3) Calcular bump GLOBAL (prioridade major > minor > patch)
@@ -366,10 +381,14 @@ def main():
             print("\n[PR] Criando PRs/MRs...")
             def create_pr_for_repo(name):
                 repo_path = Path(REPOSITORIES[name])
-                owner, repo, platform = get_repo_info(repo_path)
-                if platform == "gitlab":
-                    return f"[MR] {name}: https://code.aws.dev/{owner}/{repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=atualizacao-versao-v{new_version}&merge_request%5Btarget_branch%5D=develop&merge_request%5Btitle%5D=Release%20v{new_version}%20alinhamento%20monolitico"
-                return f"[PR] {name}: GitHub PR criado"
+                create_pull_request(
+                    repo_path,
+                    f"atualizacao-versao-v{new_version}",
+                    new_version,
+                    global_bump,
+                    updated_repos,
+                )
+                return f"[DONE] {name}: PR/MR processado"
 
             pr_results = []
             with ThreadPoolExecutor(max_workers=4) as executor:
@@ -377,10 +396,10 @@ def main():
                 for future in as_completed(futures):
                     pr_results.append(future.result())
             
-            print("\n================ Links dos Merge Requests ================")
+            print("\n================ Resultado dos PRs/MRs ================")
             for result in sorted(pr_results):
                 print(result)
-            print("==========================================================")
+            print("======================================================")
 
     print("\n[DONE] Concluido.")
 
