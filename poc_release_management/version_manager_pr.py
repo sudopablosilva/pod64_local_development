@@ -173,6 +173,13 @@ def commit_and_push(repo: Path, branch: str, version: str):
 
 
 def create_tag(repo: Path, version: str):
+    # Delete existing tag if it exists (from partial executions)
+    try:
+        run_git(repo, ["tag", "-d", f"v{version}"])
+        run_git(repo, ["push", "origin", "--delete", f"v{version}"])
+    except subprocess.CalledProcessError:
+        pass  # Tag doesn't exist, continue
+    
     run_git(repo, ["tag", f"v{version}"])
     # Push tag immediately to mark commits as processed
     run_git(repo, ["push", "origin", f"v{version}"])
