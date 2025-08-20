@@ -271,6 +271,11 @@ def create_pull_request(
             print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
             return
 
+        # Diagnostico do token
+        print(f"[DEBUG] Token configurado: {'Sim' if GITHUB_TOKEN else 'Nao'}")
+        print(f"[DEBUG] Tamanho do token: {len(GITHUB_TOKEN) if GITHUB_TOKEN else 0} caracteres")
+        print(f"[DEBUG] Prefixo do token: {GITHUB_TOKEN[:8] + '...' if GITHUB_TOKEN and len(GITHUB_TOKEN) > 8 else 'N/A'}")
+
         # Verifica se o repositorio existe
         check_url = f"https://api.github.com/repos/{owner}/{repo}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -279,13 +284,37 @@ def create_pull_request(
         try:
             check_response = requests.get(check_url, headers=headers, verify=False, timeout=10)
             print(f"[DEBUG] Status verificacao repo: {check_response.status_code}")
+            
             if check_response.status_code == 404:
                 print(f"[ERROR] Repositorio {owner}/{repo} nao encontrado ou token sem acesso")
+                print(f"[DEBUG] Resposta 404: {check_response.text[:200]}")
+                
+                # Testa acesso geral a API do GitHub
+                try:
+                    user_response = requests.get("https://api.github.com/user", headers=headers, verify=False, timeout=10)
+                    print(f"[DEBUG] Teste acesso usuario GitHub: {user_response.status_code}")
+                    if user_response.ok:
+                        user_data = user_response.json()
+                        print(f"[DEBUG] Usuario autenticado: {user_data.get('login', 'N/A')}")
+                    else:
+                        print(f"[DEBUG] Erro autenticacao: {user_response.text[:100]}")
+                except Exception as e:
+                    print(f"[DEBUG] Erro ao testar autenticacao: {str(e)}")
+                
                 print(f"[PR] Crie o pull request manualmente em:")
                 print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
                 return
+            elif check_response.status_code == 401:
+                print(f"[ERROR] Token invalido ou expirado")
+                print(f"[DEBUG] Resposta 401: {check_response.text[:200]}")
+                return
+            elif check_response.status_code == 403:
+                print(f"[ERROR] Token sem permissao para acessar {owner}/{repo}")
+                print(f"[DEBUG] Resposta 403: {check_response.text[:200]}")
+                return
             elif check_response.status_code != 200:
                 print(f"[WARN] Status inesperado ao verificar repo: {check_response.status_code}")
+                print(f"[DEBUG] Resposta: {check_response.text[:200]}")
         except Exception as e:
             print(f"[WARN] Erro ao verificar repositorio: {str(e)}")
 
@@ -325,13 +354,14 @@ def create_pull_request(
                 print(f"[PR] PR criado: {response.json().get('html_url')}")
             else:
                 print(f"[ERROR] Falha ao criar PR: {response.status_code}")
-                print(f"[ERROR] Resposta completa: {response.text}")
-                print(f"[ERROR] Headers enviados: Authorization=Bearer ***")
+                print(f"[ERROR] Resposta completa: {response.text[:500]}")
+                print(f"[ERROR] Headers enviados: Authorization=token ***")
                 print(f"[ERROR] URL tentativa: {url}")
+                print(f"[ERROR] Dados enviados: {data}")
                 print(f"[PR] Crie o pull request manualmente em:")
                 print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
         except Exception as e:
-            print(f"[ERROR] Erro SSL/Rede: {str(e)}")
+            print(f"[ERROR] Erro SSL/Rede: {type(e).__name__}: {str(e)}")
             print(f"[PR] Crie o pull request manualmente em:")
             print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
 
@@ -367,6 +397,9 @@ def main():
             "[WARN] GITHUB_TOKEN nao definido - PRs automaticos do GitHub serao manuais"
         )
         print("   URLs para criacao manual serao fornecidas quando necessario")
+        print("   Para configurar: export GITHUB_TOKEN='seu_token_aqui'")
+    elif GITHUB_TOKEN:
+        print(f"[INFO] Token GitHub configurado (tamanho: {len(GITHUB_TOKEN)} chars)")
 
     # 1) Sincronizar repositorios para develop (sempre, mesmo em dry-run)
     print("\n[SYNC] Sincronizando repositorios com develop...")
