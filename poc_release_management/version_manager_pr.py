@@ -7,6 +7,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Tuple, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import urllib3
+
+# Disable SSL warnings for corporate environments
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ========================
 # Configuracoes
@@ -16,30 +20,42 @@ GITHUB_USER = "seu-usuario"  # opcional, nao e estritamente necessario
 COMMIT_RANGE = "HEAD~10..HEAD"
 BREAKING_PATTERNS = [r"BREAKING CHANGE", r"!\s", r"\bmajor\b"]
 
-# Informe aqui seus repositorios locais
-REPOSITORIES: Dict[str, str] = {
-    # Control plane
-    "control-plane_service-auth": "./.repos/control-plane_service-auth",
-    "control-plane_job-manager": "./.repos/control-plane_job-manager",
+# Repositorios para teste local
+TEST_REPOSITORIES: Dict[str, str] = {
     # Data plane
     "dataplane_runner": "./.repos/dataplane_runner",
     "dataplane_worker": "./.repos/dataplane_worker",
+    # Control plane
+    "control-plane_service-auth": "./.repos/control-plane_service-auth",
+    "control-plane_job-manager": "./.repos/control-plane_job-manager",
 }
 
-
+# Repositorios para ambiente AWS
+AWS_REPOSITORIES: Dict[str, str] = {
+    # Data plane
+    "dataplane_itau-ns7-container-job-manager-runner": "./.repos/itau-ns7-container-job-manager-runner",
+    "dataplane_itau-ns7-container-job-manager-worker": "./.repos/itau-ns7-container-job-manager-worker",
+    # Control plane
+    "control-plane_itau-ns7-container-scheduler-manager": "./.repos/itau-ns7-container-scheduler-manager",
+    "control-plane_itau-ns7-container-scheduler-adapter": "./.repos/itau-ns7-container-scheduler-adapter",
+}
 
 
 # ========================
 # Utilitarios
 # ========================
 def run_git(repo: Path, args: List[str]) -> str:
-    return subprocess.run(
+    result = subprocess.run(
         ["git", "-C", str(repo)] + args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        check=True,
-    ).stdout.strip()
+    )
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(
+            result.returncode, result.args, output=result.stdout, stderr=result.stderr
+        )
+    return result.stdout.strip()
 
 
 def sync_repo_to_develop(repo: Path):
@@ -144,7 +160,7 @@ def create_branch(repo: Path, branch: str):
         run_git(repo, ["branch", "-D", branch])
     except subprocess.CalledProcessError:
         pass  # Branch doesn't exist, continue
-    
+
     # Repo should already be on develop and up to date
     run_git(repo, ["checkout", "-b", branch])
 
@@ -152,7 +168,8 @@ def create_branch(repo: Path, branch: str):
 def commit_and_push(repo: Path, branch: str, version: str):
     run_git(repo, ["add", "VERSION", "CHANGELOG.md"])
     run_git(repo, ["commit", "-m", f"chore: alinha release monolitico para {version}"])
-    run_git(repo, ["push", "--set-upstream", "origin", branch])
+    # Force push to handle non-fast-forward issues
+    run_git(repo, ["push", "--force-with-lease", "--set-upstream", "origin", branch])
 
 
 def create_tag(repo: Path, version: str):
@@ -189,7 +206,9 @@ def create_pull_request(
 ):
     owner, repo, platform = get_repo_info(repo_path)
     if not owner or not repo:
-        print("[ERROR] Nao foi possivel identificar repositorio a partir do remote origin.")
+        print(
+            "[ERROR] Nao foi possivel identificar repositorio a partir do remote origin."
+        )
         return
 
     body = (
@@ -199,8 +218,8 @@ def create_pull_request(
         f"### Objetivo\n"
         f"Todos os servicos desta release usam a **mesma versao** para garantir compatibilidade entre componentes.\n\n"
         f"### Servicos atualizados nesta execucao\n"
-        + "\n".join(f"- {name}" for name in updated_repos) +
-        f"\n\n### Checklist\n"
+        + "\n".join(f"- {name}" for name in updated_repos)
+        + f"\n\n### Checklist\n"
         f"- [x] Versao atualizada no arquivo VERSION\n"
         f"- [x] CHANGELOG.md atualizado\n"
         f"- [x] Tag criada localmente\n\n"
@@ -229,13 +248,19 @@ def create_pull_request(
             "body": body,
         }
         try:
-            response = requests.post(url, json=data, headers=headers, verify=False, timeout=10)
+            response = requests.post(
+                url, json=data, headers=headers, verify=False, timeout=10
+            )
             if response.ok:
                 print(f"[PR] PR criado: {response.json().get('html_url')}")
             else:
-                print(f"[ERROR] Falha ao criar PR: {response.status_code} - {response.text}")
+                print(
+                    f"[ERROR] Falha ao criar PR: {response.status_code} - {response.text}"
+                )
                 print(f"[PR] Crie o pull request manualmente em:")
-                print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
+                print(
+                    f"   https://github.com/{owner}/{repo}/compare/develop...{branch}"
+                )
         except Exception as e:
             print(f"[ERROR] Erro SSL/Rede: {str(e)}")
             print(f"[PR] Crie o pull request manualmente em:")
@@ -252,10 +277,23 @@ def main():
     parser.add_argument(
         "--dry-run", action="store_true", help="Simula sem alterar nada"
     )
+    parser.add_argument(
+        "--teste-aws", action="store_true", help="Usa repositorios do ambiente AWS"
+    )
     args = parser.parse_args()
 
+    # Select repositories based on flag
+    REPOSITORIES = AWS_REPOSITORIES if args.teste_aws else TEST_REPOSITORIES
+
+    if args.teste_aws:
+        print("[INFO] Usando repositorios do ambiente AWS")
+    else:
+        print("[INFO] Usando repositorios de teste local")
+
     if not GITHUB_TOKEN and not args.dry_run:
-        print("[WARN] GITHUB_TOKEN nao definido - PRs automaticos do GitHub serao manuais")
+        print(
+            "[WARN] GITHUB_TOKEN nao definido - PRs automaticos do GitHub serao manuais"
+        )
         print("   URLs para criacao manual serao fornecidas quando necessario")
 
     # 1) Sincronizar repositorios para develop (sempre, mesmo em dry-run)
@@ -267,7 +305,7 @@ def main():
             print(f"   [OK] {name} sincronizado")
         except Exception as e:
             print(f"   [WARN] {name}: {str(e)}")
-    
+
     # 2) Ler versoes atuais e commits por repositorio
     versions: Dict[str, str] = {}
     repo_commits: Dict[str, List[str]] = {}
@@ -288,10 +326,12 @@ def main():
 
         bump_type, _ = detect_bump_type(commits)
         repo_bumps[name] = bump_type
-        
+
         # Debug: show which commits are being considered
         if commits:
-            print(f"   - Commits encontrados: {commits[:3]}{'...' if len(commits) > 3 else ''}")
+            print(
+                f"   - Commits encontrados: {commits[:3]}{'...' if len(commits) > 3 else ''}"
+            )
         else:
             print(f"   - Nenhum commit novo desde ultima tag")
 
@@ -329,7 +369,7 @@ def main():
         _, relevant = detect_bump_type(commits)
         aligned_only = len(relevant) == 0
         branch_name = f"atualizacao-versao-v{new_version}"
-        
+
         log_lines = []
         log_lines.append(f"[REPO] {name}")
         log_lines.append(f"   - Versao atual: {current_version}")
@@ -338,7 +378,9 @@ def main():
 
         if args.dry_run:
             if current_version == new_version:
-                log_lines.append("   [SIM] Ja esta alinhado. Nenhuma acao seria necessaria.")
+                log_lines.append(
+                    "   [SIM] Ja esta alinhado. Nenhuma acao seria necessaria."
+                )
                 return None, "\n".join(log_lines)
             log_lines.append(f"   [SIM] Processaria: {branch_name}")
             return name, "\n".join(log_lines)
@@ -352,6 +394,10 @@ def main():
                 create_tag(repo, new_version)
                 log_lines.append(f"   [OK] {name} processado")
                 return name, "\n".join(log_lines)
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr.strip() if e.stderr else str(e)
+                log_lines.append(f"   [ERROR] Git erro: {error_msg}")
+                return None, "\n".join(log_lines)
             except Exception as e:
                 log_lines.append(f"   [ERROR] Erro ao processar {name}: {str(e)}")
                 return None, "\n".join(log_lines)
@@ -362,15 +408,17 @@ def main():
     # Process repos in parallel and collect results
     updated_repos: List[str] = []
     repo_logs: List[str] = []
-    
+
     with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {executor.submit(process_repo, name): name for name in REPOSITORIES.keys()}
+        futures = {
+            executor.submit(process_repo, name): name for name in REPOSITORIES.keys()
+        }
         for future in as_completed(futures):
             result, log = future.result()
             repo_logs.append(log)
             if result:
                 updated_repos.append(result)
-    
+
     # Print all logs in order
     print("\n================ Processamento dos Repositorios ================")
     for log in sorted(repo_logs):
@@ -382,12 +430,15 @@ def main():
         if updated_repos:
             print("\n[SIM] PRs/MRs seriam criados para os repositorios:")
             for r in updated_repos:
-                print(f"   - {r} (base: develop, head: atualizacao-versao-v{new_version})")
+                print(
+                    f"   - {r} (base: develop, head: atualizacao-versao-v{new_version})"
+                )
         else:
             print("\n[SIM] Tudo ja estava alinhado. Nenhum PR/MR seria necessario.")
     else:
         if updated_repos:
             print("\n[PR] Criando PRs/MRs...")
+
             def create_pr_for_repo(name):
                 repo_path = Path(REPOSITORIES[name])
                 create_pull_request(
@@ -401,10 +452,12 @@ def main():
 
             pr_results = []
             with ThreadPoolExecutor(max_workers=4) as executor:
-                futures = [executor.submit(create_pr_for_repo, name) for name in updated_repos]
+                futures = [
+                    executor.submit(create_pr_for_repo, name) for name in updated_repos
+                ]
                 for future in as_completed(futures):
                     pr_results.append(future.result())
-            
+
             print("\n================ Resultado dos PRs/MRs ================")
             for result in sorted(pr_results):
                 print(result)
