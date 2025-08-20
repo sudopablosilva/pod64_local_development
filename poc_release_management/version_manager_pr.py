@@ -173,16 +173,24 @@ def commit_and_push(repo: Path, branch: str, version: str):
 
 
 def create_tag(repo: Path, version: str):
-    # Delete existing tag if it exists (from partial executions)
-    try:
-        run_git(repo, ["tag", "-d", f"v{version}"])
-        run_git(repo, ["push", "origin", "--delete", f"v{version}"])
-    except subprocess.CalledProcessError:
-        pass  # Tag doesn't exist, continue
+    tag_name = f"v{version}"
     
-    run_git(repo, ["tag", f"v{version}"])
-    # Push tag immediately to mark commits as processed
-    run_git(repo, ["push", "origin", f"v{version}"])
+    # Delete local tag if exists
+    try:
+        run_git(repo, ["tag", "-d", tag_name])
+    except subprocess.CalledProcessError:
+        pass  # Tag doesn't exist locally
+    
+    # Delete remote tag if exists
+    try:
+        run_git(repo, ["push", "origin", "--delete", tag_name])
+    except subprocess.CalledProcessError:
+        pass  # Tag doesn't exist remotely
+    
+    # Create new tag
+    run_git(repo, ["tag", tag_name])
+    # Push new tag
+    run_git(repo, ["push", "origin", tag_name])
 
 
 def get_repo_info(repo_path: Path) -> Tuple[str, str, str]:
