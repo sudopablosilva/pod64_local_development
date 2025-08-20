@@ -59,12 +59,12 @@ def run_git(repo: Path, args: List[str]) -> str:
 
 
 def sync_repo_to_develop(repo: Path):
-    """Ensure repo is on develop branch and up to date"""
+    """Garante que o repo esta na branch develop e atualizado"""
     try:
         run_git(repo, ["checkout", "develop"])
         run_git(repo, ["pull", "origin", "develop"])
     except subprocess.CalledProcessError:
-        # Create develop from main/master if it doesn't exist
+        # Cria develop a partir de main/master se nao existir
         try:
             run_git(repo, ["checkout", "main"])
             run_git(repo, ["pull", "origin", "main"])
@@ -78,14 +78,14 @@ def sync_repo_to_develop(repo: Path):
 
 
 def get_commits_since_last_tag(repo: Path) -> List[str]:
-    """Get commits since last version tag, avoiding reprocessing"""
+    """Obtem commits desde a ultima tag de versao, evitando reprocessamento"""
     try:
-        # Try to get last version tag
+        # Tenta obter a ultima tag de versao
         last_tag = run_git(repo, ["describe", "--tags", "--abbrev=0", "--match=v*"])
-        # Get commits since last tag
+        # Obtem commits desde a ultima tag
         log = run_git(repo, ["log", f"{last_tag}..HEAD", "--pretty=format:%s"])
     except subprocess.CalledProcessError:
-        # No tags found, get recent commits
+        # Nenhuma tag encontrada, obtem commits recentes
         try:
             log = run_git(repo, ["log", "--pretty=format:%s", "-10"])
         except subprocess.CalledProcessError:
@@ -94,7 +94,7 @@ def get_commits_since_last_tag(repo: Path) -> List[str]:
 
 
 def get_commits(repo: Path) -> List[str]:
-    """Get commits for analysis - uses tag-based approach to avoid reprocessing"""
+    """Obtem commits para analise - usa abordagem baseada em tags para evitar reprocessamento"""
     return get_commits_since_last_tag(repo)
 
 
@@ -155,41 +155,41 @@ def update_changelog(repo: Path, version: str, commits: List[str], aligned_only:
 
 
 def create_branch(repo: Path, branch: str):
-    # Delete branch if it already exists
+    # Deleta branch se ja existir
     try:
         run_git(repo, ["branch", "-D", branch])
     except subprocess.CalledProcessError:
-        pass  # Branch doesn't exist, continue
+        pass  # Branch nao existe, continua
 
-    # Repo should already be on develop and up to date
+    # Repo ja deve estar em develop e atualizado
     run_git(repo, ["checkout", "-b", branch])
 
 
 def commit_and_push(repo: Path, branch: str, version: str):
     run_git(repo, ["add", "VERSION", "CHANGELOG.md"])
     run_git(repo, ["commit", "-m", f"chore: alinha release monolitico para {version}"])
-    # Force push to handle non-fast-forward issues
+    # Force push para lidar com problemas de non-fast-forward
     run_git(repo, ["push", "--force-with-lease", "--set-upstream", "origin", branch])
 
 
 def create_tag(repo: Path, version: str):
     tag_name = f"v{version}"
     
-    # Delete local tag if exists
+    # Deleta tag local se existir
     try:
         run_git(repo, ["tag", "-d", tag_name])
     except subprocess.CalledProcessError:
-        pass  # Tag doesn't exist locally
+        pass  # Tag nao existe localmente
     
-    # Delete remote tag if exists
+    # Deleta tag remota se existir
     try:
         run_git(repo, ["push", "origin", "--delete", tag_name])
     except subprocess.CalledProcessError:
-        pass  # Tag doesn't exist remotely
+        pass  # Tag nao existe remotamente
     
-    # Create new tag
+    # Cria nova tag
     run_git(repo, ["tag", tag_name])
-    # Push new tag
+    # Envia nova tag
     run_git(repo, ["push", "origin", tag_name])
 
 
@@ -249,33 +249,68 @@ def create_pull_request(
         return
 
     if platform == "github":
+        print(f"[DEBUG] Tentando criar PR para {owner}/{repo}")
+        print(f"[DEBUG] Branch origem: {branch}, Branch destino: develop")
+        
         if not GITHUB_TOKEN:
-            print(f"[PR] Crie o pull request manualmente em:")
+            print(f"[PR] Token nao configurado. Crie o pull request manualmente em:")
             print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
             return
 
-        url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
+        # Verifica se o repositorio existe
+        check_url = f"https://api.github.com/repos/{owner}/{repo}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        print(f"[DEBUG] Verificando acesso ao repositorio: {check_url}")
+        
+        try:
+            check_response = requests.get(check_url, headers=headers, verify=False, timeout=10)
+            print(f"[DEBUG] Status verificacao repo: {check_response.status_code}")
+            if check_response.status_code == 404:
+                print(f"[ERROR] Repositorio {owner}/{repo} nao encontrado ou token sem acesso")
+                print(f"[PR] Crie o pull request manualmente em:")
+                print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
+                return
+            elif check_response.status_code != 200:
+                print(f"[WARN] Status inesperado ao verificar repo: {check_response.status_code}")
+        except Exception as e:
+            print(f"[WARN] Erro ao verificar repositorio: {str(e)}")
+
+        # Verifica se a branch existe
+        branch_url = f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}"
+        print(f"[DEBUG] Verificando se branch existe: {branch}")
+        try:
+            branch_response = requests.get(branch_url, headers=headers, verify=False, timeout=10)
+            print(f"[DEBUG] Status verificacao branch: {branch_response.status_code}")
+            if branch_response.status_code == 404:
+                print(f"[ERROR] Branch {branch} nao encontrada no repositorio")
+                print(f"[PR] Verifique se o push da branch foi bem-sucedido")
+                return
+        except Exception as e:
+            print(f"[WARN] Erro ao verificar branch: {str(e)}")
+
+        url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
         data = {
             "title": f"Release v{version} - alinhamento monolitico",
             "head": branch,
             "base": "develop",
             "body": body,
         }
+        print(f"[DEBUG] Criando PR com dados: title='{data['title']}', head='{data['head']}', base='{data['base']}'")
+        
         try:
             response = requests.post(
                 url, json=data, headers=headers, verify=False, timeout=10
             )
+            print(f"[DEBUG] Status resposta PR: {response.status_code}")
             if response.ok:
                 print(f"[PR] PR criado: {response.json().get('html_url')}")
             else:
-                print(
-                    f"[ERROR] Falha ao criar PR: {response.status_code} - {response.text}"
-                )
+                print(f"[ERROR] Falha ao criar PR: {response.status_code}")
+                print(f"[ERROR] Resposta completa: {response.text}")
+                print(f"[ERROR] Headers enviados: Authorization=Bearer ***")
+                print(f"[ERROR] URL tentativa: {url}")
                 print(f"[PR] Crie o pull request manualmente em:")
-                print(
-                    f"   https://github.com/{owner}/{repo}/compare/develop...{branch}"
-                )
+                print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
         except Exception as e:
             print(f"[ERROR] Erro SSL/Rede: {str(e)}")
             print(f"[PR] Crie o pull request manualmente em:")
