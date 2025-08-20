@@ -212,12 +212,26 @@ def get_repo_info(repo_path: Path) -> Tuple[str, str, str]:
         return "", "", ""
 
 
+def check_existing_pr(owner: str, repo: str, branch: str, headers: Dict[str, str]) -> bool:
+    """Verifica se ja existe PR aberto para a branch"""
+    try:
+        url = f"https://api.github.com/repos/{owner}/{repo}/pulls?head={owner}:{branch}&state=open"
+        response = requests.get(url, headers=headers, verify=False, timeout=10)
+        if response.ok:
+            prs = response.json()
+            return len(prs) > 0
+    except Exception:
+        pass
+    return False
+
+
 def create_pull_request(
     repo_path: Path,
     branch: str,
     version: str,
     global_bump: str,
     updated_repos: List[str],
+    skip_existing: bool = False,
 ):
     owner, repo, platform = get_repo_info(repo_path)
     if not owner or not repo:
@@ -275,6 +289,11 @@ def create_pull_request(
         except Exception as e:
             print(f"[WARN] Erro ao verificar repositorio: {str(e)}")
 
+        # Verifica se ja existe PR aberto
+        if skip_existing and check_existing_pr(owner, repo, branch, headers):
+            print(f"[SKIP] PR ja existe para branch {branch} - pulando criacao")
+            return
+
         # Verifica se a branch existe
         branch_url = f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}"
         print(f"[DEBUG] Verificando se branch existe: {branch}")
@@ -329,6 +348,9 @@ def main():
     )
     parser.add_argument(
         "--itau", action="store_true", help="Usa repositorios do ambiente Itau"
+    )
+    parser.add_argument(
+        "--skip-existing-prs", action="store_true", help="Pula criacao de PRs se ja existem PRs abertos para a mesma versao"
     )
     args = parser.parse_args()
 
@@ -497,6 +519,7 @@ def main():
                     new_version,
                     global_bump,
                     updated_repos,
+                    skip_existing=args.skip_existing_prs,
                 )
                 return f"[DONE] {name}: PR/MR processado"
 
