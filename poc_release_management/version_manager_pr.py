@@ -30,14 +30,14 @@ TEST_REPOSITORIES: Dict[str, str] = {
     "control-plane_job-manager": "./.repos/control-plane_job-manager",
 }
 
-# Repositorios para ambiente AWS
-AWS_REPOSITORIES: Dict[str, str] = {
-    # Data plane
-    "dataplane_itau-ns7-container-job-manager-runner": "./.repos/itau-ns7-container-job-manager-runner",
-    "dataplane_itau-ns7-container-job-manager-worker": "./.repos/itau-ns7-container-job-manager-worker",
+# Repositorios para ambiente Itau
+ITAU_REPOSITORIES: Dict[str, str] = {
     # Control plane
-    "control-plane_itau-ns7-container-scheduler-manager": "./.repos/itau-ns7-container-scheduler-manager",
-    "control-plane_itau-ns7-container-scheduler-adapter": "./.repos/itau-ns7-container-scheduler-adapter",
+    "control-plane_itau-ns7-container-job-manager-runner": "./.repos/itau-ns7-container-job-manager-runner",
+    "control-plane_itau-ns7-container-job-manager-worker": "./.repos/itau-ns7-container-job-manager-worker",
+    # Data plane
+    "dataplane_itau-ns7-container-scheduler-manager": "./.repos/itau-ns7-container-scheduler-manager",
+    "dataplane_itau-ns7-container-scheduler-adapter": "./.repos/itau-ns7-container-scheduler-adapter",
 }
 
 
@@ -278,17 +278,17 @@ def main():
         "--dry-run", action="store_true", help="Simula sem alterar nada"
     )
     parser.add_argument(
-        "--teste-aws", action="store_true", help="Usa repositorios do ambiente AWS"
+        "--itau", action="store_true", help="Usa repositorios do ambiente Itau"
     )
     args = parser.parse_args()
 
     # Select repositories based on flag
-    REPOSITORIES = AWS_REPOSITORIES if args.teste_aws else TEST_REPOSITORIES
+    REPOSITORIES = ITAU_REPOSITORIES if args.itau else TEST_REPOSITORIES
 
-    if args.teste_aws:
-        print("[INFO] Usando repositorios do ambiente AWS")
+    if args.itau:
+        print("[INFO] Usando repositorios do ambiente Itau")
     else:
-        print("[INFO] Usando repositorios de teste local")
+        print("[INFO] Usando repositorios de teste local (AWS)")
 
     if not GITHUB_TOKEN and not args.dry_run:
         print(
