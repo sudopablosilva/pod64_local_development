@@ -1,32 +1,32 @@
-# Guia de Versionamento Monolítico
+# Guia de Versionamento Monolitico
 
-Este guia explica como usar o sistema de versionamento automático para microserviços com alinhamento monolítico.
+Este guia explica como usar o sistema de versionamento automatico para microservicos com alinhamento monolitico.
 
 ## Como Funciona o Versionamento
 
-O script `version_manager_pr.py` analisa os commits dos últimos 10 commits de cada repositório e determina o tipo de bump baseado nas mensagens de commit seguindo o padrão **Conventional Commits**.
+O script `version_manager_pr.py` analisa commits desde a ultima tag de cada repositorio e determina o tipo de bump baseado nas mensagens de commit seguindo o padrao **Conventional Commits**.
 
 ### Tipos de Bump
 
-| Tipo | Quando Ocorre | Exemplo de Commit | Versão Anterior | Nova Versão |
+| Tipo | Quando Ocorre | Exemplo de Commit | Versao Anterior | Nova Versao |
 |------|---------------|-------------------|-----------------|-------------|
-| **PATCH** | Correções de bugs | `fix: corrige erro de validação` | 1.2.3 | 1.2.4 |
+| **PATCH** | Correcoes de bugs | `fix: corrige erro de validacao` | 1.2.3 | 1.2.4 |
 | **MINOR** | Novas funcionalidades | `feat: adiciona nova API` | 1.2.3 | 1.3.0 |
 | **MAJOR** | Breaking changes | `feat!: remove API v1` | 1.2.3 | 2.0.0 |
 
-### Padrões de Commit Reconhecidos
+### Padroes de Commit Reconhecidos
 
-#### PATCH (Correções)
+#### PATCH (Correcoes)
 ```bash
-fix: corrige bug de autenticação
+fix: corrige bug de autenticacao
 fix: resolve problema de timeout
-fix: ajusta validação de entrada
+fix: ajusta validacao de entrada
 ```
 
 #### MINOR (Novas funcionalidades)
 ```bash
-feat: adiciona endpoint de métricas
-feat: implementa cache distribuído
+feat: adiciona endpoint de metricas
+feat: implementa cache distribuido
 feat: adiciona suporte a webhooks
 ```
 
@@ -37,7 +37,7 @@ feat!: altera estrutura de resposta da API
 fix!: corrige comportamento que quebra compatibilidade
 
 # Ou com BREAKING CHANGE no corpo:
-feat: nova autenticação
+feat: nova autenticacao
 
 BREAKING CHANGE: remove suporte a tokens antigos
 ```
@@ -46,37 +46,37 @@ BREAKING CHANGE: remove suporte a tokens antigos
 
 ### Para PATCH (1.0.0 → 1.0.1)
 ```bash
-# Faça commits de correção
-git commit -m "fix: corrige erro de conexão com banco"
+# Faca commits de correcao
+git commit -m "fix: corrige erro de conexao com banco"
 git commit -m "fix: resolve problema de encoding"
 ```
 
 ### Para MINOR (1.0.0 → 1.1.0)
 ```bash
-# Faça commits de nova funcionalidade
+# Faca commits de nova funcionalidade
 git commit -m "feat: adiciona endpoint de health check"
-git commit -m "feat: implementa retry automático"
+git commit -m "feat: implementa retry automatico"
 ```
 
 ### Para MAJOR (1.0.0 → 2.0.0)
 ```bash
-# Opção 1: Use ! após o tipo
+# Opcao 1: Use ! apos o tipo
 git commit -m "feat!: remove endpoint deprecated /v1/users"
 
-# Opção 2: Use BREAKING CHANGE no corpo
-git commit -m "feat: nova estrutura de autenticação
+# Opcao 2: Use BREAKING CHANGE no corpo
+git commit -m "feat: nova estrutura de autenticacao
 
-BREAKING CHANGE: tokens antigos não são mais suportados"
+BREAKING CHANGE: tokens antigos nao sao mais suportados"
 
-# Opção 3: Use palavra-chave 'major'
+# Opcao 3: Use palavra-chave 'major'
 git commit -m "refactor: major restructure of API endpoints"
 ```
 
 ## Usando o version_manager_pr.py
 
-### 1. Configuração Inicial
+### 1. Configuracao Inicial
 
-Edite o arquivo `version_manager_pr.py` e configure seus repositórios:
+Edite o arquivo `version_manager_pr.py` e configure seus repositorios:
 
 ```python
 REPOSITORIES: Dict[str, str] = {
@@ -86,7 +86,7 @@ REPOSITORIES: Dict[str, str] = {
 }
 ```
 
-### 2. Simulação (Dry-run)
+### 2. Simulacao (Dry-run)
 
 Sempre teste primeiro com `--dry-run`:
 
@@ -94,12 +94,12 @@ Sempre teste primeiro com `--dry-run`:
 python version_manager_pr.py --dry-run
 ```
 
-**Saída esperada:**
+**Saida esperada:**
 ```
 [SYNC] Sincronizando repositorios com develop...
 [INFO] Inspecionando meu-servico-auth (.repos/meu-servico-auth)
    - Versao atual: 1.2.3
-   - Commits (ultimos 10): 5
+   - Commits desde ultima tag: 2
    - Bump sugerido por este repo: minor
 
 ================ Gerindo como monolito ================
@@ -109,81 +109,58 @@ Bump global: minor
 ======================================================
 ```
 
-### 3. Execução Real
+### 3. Execucao Real
 
-Quando estiver satisfeito com a simulação:
+Quando estiver satisfeito com a simulacao:
 
 ```bash
 python version_manager_pr.py
 ```
 
-### 4. Variáveis de Ambiente (Opcional)
+### 4. Variaveis de Ambiente (Opcional)
 
-Para criação automática de PRs no GitHub:
+Para criacao automatica de PRs no GitHub:
 
 ```bash
 export GITHUB_TOKEN="seu_token_aqui"
 python version_manager_pr.py
 ```
 
-## Lógica de Versionamento Global
+## Logica de Versionamento Global
 
-O script segue esta lógica para determinar a versão global:
+O script segue esta logica para determinar a versao global:
 
-1. **Analisa todos os repositórios** e determina o bump individual
+1. **Analisa todos os repositorios** e determina o bump individual
 2. **Prioridade de bump**: MAJOR > MINOR > PATCH
-3. **Versão base**: Maior versão atual entre todos os repositórios
-4. **Versão final**: Aplica o bump de maior prioridade na versão base
+3. **Versao base**: Maior versao atual entre todos os repositorios
+4. **Versao final**: Aplica o bump de maior prioridade na versao base
 
-### ⚠️ Comportamento Importante: Commits Já Processados
+### ✅ Comportamento Inteligente: Evita Reprocessamento
 
-O script **sempre considera os últimos 10 commits** de cada repositório, incluindo commits que já foram processados em releases anteriores.
+O script **considera apenas commits desde a ultima tag** de cada repositorio, evitando reprocessamento de commits ja lancados.
 
-**Cenário comum:**
-1. Microserviço A tem commit `feat!:` (major) → Release v2.0.0
-2. Microserviço B recebe commit `feat:` (minor)
-3. Próxima execução ainda vê o `feat!:` do microserviço A → Sugere major novamente
+**Cenario otimizado:**
+1. Microservico A tem commit `feat!:` (major) → Release v2.0.0 → Tag criada
+2. Microservico B recebe commit `feat:` (minor)
+3. Proxima execucao ve apenas o novo `feat:` do microservico B → Sugere minor
 
-**Isso é esperado** no modelo monolítico porque:
-- ✅ Garante que todos os serviços sempre tenham a mesma versão
-- ✅ Evita incompatibilidades entre versões diferentes
-- ✅ Simplifica o gerenciamento de dependências
+**Vantagens:**
+- ✅ Evita bumps desnecessarios por commits ja processados
+- ✅ Permite releases incrementais mais precisos
+- ✅ Mantem alinhamento monolitico quando necessario
 
-### Exemplo Prático
+### Exemplo Pratico
 
 **Estado atual:**
-- `servico-auth`: v1.2.0 (commits: 2 fix)
-- `servico-api`: v1.1.5 (commits: 1 feat)  
-- `servico-worker`: v1.2.1 (commits: 1 feat!)
+- `servico-auth`: v1.2.0 (commits desde tag: 2 fix)
+- `servico-api`: v1.1.5 (commits desde tag: 1 feat)  
+- `servico-worker`: v1.2.1 (commits desde tag: 1 feat!)
 
 **Resultado:**
 - Bump individual: patch, minor, major
 - **Bump global**: major (maior prioridade)
-- **Versão base**: 1.2.1 (maior versão atual)
-- **Nova versão**: 2.0.0 (major bump)
-
-## Estratégias de Versionamento
-
-### Opção 1: Monolítico Puro (Atual)
-**Comportamento:** Todos os serviços sempre têm a mesma versão
-```bash
-# Primeira execução: microserviço A com feat!
-python version_manager_pr.py  # → v2.0.0 para todos
-
-# Segunda execução: microserviço B com feat
-python version_manager_pr.py  # → v3.0.0 para todos (ainda vê o feat! do A)
-```
-
-### Opção 2: Baseado em Tags (Alternativa)
-**Comportamento:** Considera apenas commits desde a última tag
-- Requer modificação do script para usar `git describe --tags`
-- Commits já "taggeados" não influenciam próximas releases
-- Mais complexo, mas evita re-processamento
-
-### Opção 3: Híbrido
-**Comportamento:** Permite releases independentes com alinhamento periódico
-- Releases individuais para mudanças menores
-- Alinhamento monolítico para breaking changes
+- **Versao base**: 1.2.1 (maior versao atual)
+- **Nova versao**: 2.0.0 (major bump)
 
 ## Fluxo de Trabalho Recomendado
 
@@ -197,7 +174,7 @@ git push origin feature/nova-funcionalidade
 
 ### 2. Merge para Develop
 ```bash
-# Após aprovação do PR/MR
+# Apos aprovacao do PR/MR
 git checkout develop
 git merge feature/nova-funcionalidade
 ```
@@ -209,35 +186,30 @@ python version_manager_pr.py --dry-run  # Simule primeiro
 python version_manager_pr.py            # Execute
 ```
 
-### 4. Aprovação dos MRs
+### 4. Aprovacao dos MRs
 - Revise os MRs criados automaticamente
-- Aprove e faça merge para develop
-- As tags serão criadas automaticamente
+- Aprove e faca merge para develop
+- As tags serao criadas e enviadas automaticamente
 
 ## Troubleshooting
 
-### "Commits (ultimos 10): 0"
-- O repositório não tem commits ou a branch develop não existe
-- Verifique se há commits na branch develop
+### "Commits desde ultima tag: 0"
+- O repositorio nao tem commits novos desde a ultima tag
+- Verifique se ha commits na branch develop
 
 ### "Bump sugerido: patch" mesmo com feat
-- Verifique se a mensagem de commit segue o padrão correto
-- Use exatamente `feat:` no início da mensagem
+- Verifique se a mensagem de commit segue o padrao correto
+- Use exatamente `feat:` no inicio da mensagem
 
-### Erro de sincronização
+### Erro de sincronizacao
 - Verifique se as branches develop existem
-- Confirme que os repositórios têm remotes configurados
+- Confirme que os repositorios tem remotes configurados
 
-### Versão não mudou
-- Se todos os commits são irrelevantes (docs, chore), a versão não muda
-- Apenas commits fix, feat, e breaking changes afetam a versão
+### Versao nao mudou
+- Se todos os commits sao irrelevantes (docs, chore), a versao nao muda
+- Apenas commits fix, feat, e breaking changes afetam a versao
 
-### "Sempre sugere major mesmo após release"
-- **Comportamento esperado** no modelo monolítico atual
-- O script sempre analisa os últimos 10 commits, incluindo os já processados
-- **Solução**: Execute releases em lotes ou considere implementar versionamento baseado em tags
-
-### Como evitar re-processamento de commits
-1. **Agrupe mudanças**: Faça releases menos frequentes com múltiplas mudanças
-2. **Use branches de release**: Crie branches específicas para cada release
-3. **Considere tags**: Modifique o script para considerar apenas commits desde a última tag
+### "Sempre sugere major mesmo apos release"
+- **Comportamento corrigido** na versao atual
+- O script agora considera apenas commits desde a ultima tag
+- Tags sao criadas automaticamente para marcar commits processados
