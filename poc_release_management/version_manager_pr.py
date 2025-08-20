@@ -27,6 +27,8 @@ REPOSITORIES: Dict[str, str] = {
 }
 
 
+
+
 # ========================
 # Utilitarios
 # ========================
@@ -226,11 +228,18 @@ def create_pull_request(
             "base": "develop",
             "body": body,
         }
-        response = requests.post(url, json=data, headers=headers)
-        if response.ok:
-            print(f"[PR] PR criado: {response.json().get('html_url')}")
-        else:
-            print(f"[ERROR] Falha ao criar PR: {response.status_code} - {response.text}")
+        try:
+            response = requests.post(url, json=data, headers=headers, verify=False, timeout=10)
+            if response.ok:
+                print(f"[PR] PR criado: {response.json().get('html_url')}")
+            else:
+                print(f"[ERROR] Falha ao criar PR: {response.status_code} - {response.text}")
+                print(f"[PR] Crie o pull request manualmente em:")
+                print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
+        except Exception as e:
+            print(f"[ERROR] Erro SSL/Rede: {str(e)}")
+            print(f"[PR] Crie o pull request manualmente em:")
+            print(f"   https://github.com/{owner}/{repo}/compare/develop...{branch}")
 
 
 # ========================
